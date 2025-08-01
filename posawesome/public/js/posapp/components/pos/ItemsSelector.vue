@@ -1557,7 +1557,7 @@ export default {
 			if (!barcode || barcode.length < 12) return null;
 			const dept = barcode.substr(0, 2);
 			const itemCode = barcode.substr(2, 5);
-			const value = barcode.substr(7, 4); // 4 digits for weight/price
+			const value = barcode.substr(7, 5); // 5 digits for weight/price
 			const typeChar = barcode.substr(11, 1); // C
 			return {
 				department: dept,
