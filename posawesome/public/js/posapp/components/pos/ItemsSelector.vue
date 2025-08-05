@@ -1089,6 +1089,29 @@ export default {
 				return;
 			}
 
+			// --- SCALE BARCODE LOGIC ---
+			const scaleData = vm.parseScaleBarcode(vm.search);
+			
+			if (scaleData) {
+				const item = vm.items.find(it => it.item_code.endsWith(scaleData.item_code));
+				if (item) {
+					let qty = 1, rate = item.rate;
+					if (vm.pos_profile.custom_barcode_type === "Weight Code") {
+						qty = scaleData.value / 1000;
+					} else if (vm.pos_profile.custom_barcode_type === "Item Price") {
+						rate = scaleData.value / 100;
+					}
+					const newItem = { ...item, qty, rate };
+					vm.add_item(newItem);
+					frappe.show_alert({ message: `Added: ${item.item_name} (${qty} / ${rate})`, indicator: "green" }, 3);
+					vm.clearSearch();
+					vm.$refs.debounce_search && vm.$refs.debounce_search.focus();
+					vm.search_from_scanner = false;
+					return;
+				}
+			}
+			// --- END SCALE BARCODE LOGIC ---
+
 			const fromScanner = vm.search_from_scanner;
 
 			if (vm.pos_profile.pose_use_limit_search) {
@@ -1528,8 +1551,42 @@ export default {
 				this.processScannedItem(scannedCode);
 			}, 300);
 		},
-		processScannedItem(scannedCode) {
-			// First try to find exact match by barcode
+		// Parse scale barcode: DDIIIIIWWWWC or DDIIIIIPPPPC
+		parseScaleBarcode(barcode) {
+			// Must be at least 12 chars (DDIIIIIWWWWC)
+			if (!barcode || barcode.length < 12) return null;
+			const dept = barcode.substr(0, 2);
+			const itemCode = barcode.substr(2, 5);
+			const value = barcode.substr(7, 5); // 5 digits for weight/price
+			const typeChar = barcode.substr(11, 1); // C
+			return {
+				department: dept,
+				item_code: itemCode,
+				value: value,
+				typeChar: typeChar,
+			};
+		},
+
+		async processScannedItem(scannedCode) {
+			const scaleData = this.parseScaleBarcode(scannedCode);
+			if (scaleData) {
+				const item = this.items.find(it => it.item_code.endsWith(scaleData.item_code));
+				if (item) {
+					let qty = 1, rate = item.rate;
+				if (this.pos_profile.custom_barcode_type === "Weight Code") {
+					qty = parseFloat(scaleData.value) / 1000;
+				} else if (this.pos_profile.custom_barcode_type === "Item Price") {
+					rate = parseFloat(scaleData.value) / 100;
+				}
+					const newItem = { ...item, qty, rate };
+					await this.add_item(newItem);
+					frappe.show_alert({ message: `Added: ${item.item_name} (${qty} / ${rate})`, indicator: "green" }, 3);
+					this.clearSearch();
+					this.$refs.debounce_search && this.$refs.debounce_search.focus();
+					return;
+				}
+			}
+			// Fallback to default barcode processing
 			let foundItem = this.items.find(
 				(item) =>
 					item.barcode === scannedCode ||
@@ -1622,18 +1679,18 @@ export default {
 
 			items.forEach((item, index) => {
 				html += `
-          <div class="item-option p-3 mb-2 border rounded cursor-pointer" data-item-index="${index}" style="border: 1px solid #ddd; cursor: pointer;">
-            <div class="d-flex align-items-center">
-              <img src="${item.image || "/assets/posawesome/js/posapp/components/pos/placeholder-image.png"}" 
-                   style="width: 50px; height: 50px; object-fit: cover; margin-right: 15px;" />
-              <div>
-                <div class="font-weight-bold">${item.item_name}</div>
-                <div class="text-muted small">${item.item_code}</div>
-                <div class="text-primary">${this.format_currency(item.rate, this.pos_profile.currency, this.ratePrecision(item.rate))}</div>
-              </div>
-            </div>
-          </div>
-        `;
+		  <div class="item-option p-3 mb-2 border rounded cursor-pointer" data-item-index="${index}" style="border: 1px solid #ddd; cursor: pointer;">
+			<div class="d-flex align-items-center">
+			  <img src="${item.image || "/assets/posawesome/js/posapp/components/pos/placeholder-image.png"}" 
+				   style="width: 50px; height: 50px; object-fit: cover; margin-right: 15px;" />
+			  <div>
+				<div class="font-weight-bold">${item.item_name}</div>
+				<div class="text-muted small">${item.item_code}</div>
+				<div class="text-primary">${this.format_currency(item.rate, this.pos_profile.currency, this.ratePrecision(item.rate))}</div>
+			  </div>
+			</div>
+		  </div>
+		`;
 			});
 
 			html += "</div>";
