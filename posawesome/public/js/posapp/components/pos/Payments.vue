@@ -1963,6 +1963,10 @@ export default {
 				this.is_return = false;
 				this.is_credit_return = false;
 			});
+			// Handle submit with print event from shortcuts
+			this.eventBus.on("submit_with_print", () => {
+				this.submit_invoice(true); // true = print
+			});
 		});
 	},
 	// Lifecycle hook: beforeUnmount
@@ -1977,6 +1981,7 @@ export default {
 		this.eventBus.off("set_customer_info_to_edit");
 		this.eventBus.off("set_mpesa_payment");
 		this.eventBus.off("clear_invoice");
+		this.eventBus.off("submit_with_print");
 		this.eventBus.off("network-online", this.syncPendingInvoices);
 		this.eventBus.off("server-online", this.syncPendingInvoices);
 	},

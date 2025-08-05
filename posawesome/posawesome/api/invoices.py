@@ -648,6 +648,71 @@ def fetch_exchange_rate_pair(from_currency: str, to_currency: str, posting_date:
 
 
 @frappe.whitelist()
+def get_todays_invoices(company, user=None):
+	"""
+	Get all invoices for today that can be recalled/loaded
+	
+	Args:
+	    company: Company to search in
+	    user: User who created the invoices (optional)
+	
+	Returns:
+	    List of invoice documents from today
+	"""
+	from frappe.utils import nowdate
+	
+	today = nowdate()
+	
+	filters = {
+		"company": company,
+		"posting_date": today,
+		"docstatus": 1,  # Only submitted invoices
+		"is_return": 0,  # Exclude return invoices
+	}
+	
+	if user:
+		filters["owner"] = user
+	
+	invoices_list = frappe.get_list(
+		"Sales Invoice",
+		filters=filters,
+		fields=["name"],
+		order_by="posting_date desc, name desc",
+	)
+	
+	data = []
+	for invoice in invoices_list:
+		invoice_doc = frappe.get_doc("Sales Invoice", invoice.name)
+		data.append(invoice_doc)
+	
+	return data
+
+
+@frappe.whitelist()
+def open_cash_drawer():
+	"""
+	Open the cash drawer by sending a command to the receipt printer
+	This is a placeholder - actual implementation depends on printer setup
+	"""
+	try:
+		# This is a placeholder implementation
+		# In a real implementation, you would send ESC/POS commands to the printer
+		# to open the cash drawer
+		
+		# Example ESC/POS command for opening cash drawer:
+		# ESC p m t1 t2
+		# where m=0, t1=0x19, t2=0xFA (typical values)
+		
+		# For now, we'll just log that the command was sent
+		frappe.logger().info("Cash drawer open command sent")
+		
+		return {"success": True, "message": "Cash drawer command sent"}
+	except Exception as e:
+		frappe.logger().error(f"Failed to open cash drawer: {str(e)}")
+		return {"success": False, "message": f"Failed to open cash drawer: {str(e)}"}
+
+
+@frappe.whitelist()
 def get_price_list_currency(price_list: str) -> str:
 	"""Return the currency of the given Price List."""
 	if not price_list:

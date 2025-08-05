@@ -1156,6 +1156,14 @@ export default {
 		this.eventBus.on("item-drag-end", () => {
 			this.showDropFeedback(false);
 		});
+		this.eventBus.on("submit_invoice_with_print", () => {
+			// Trigger payment submission with print
+			this.eventBus.emit("show_payment", "true");
+			// Add a small delay to ensure payment component is loaded
+			setTimeout(() => {
+				this.eventBus.emit("submit_with_print");
+			}, 100);
+		});
 	},
 	// Cleanup event listeners before component is destroyed
 	beforeUnmount() {
@@ -1165,6 +1173,7 @@ export default {
 		this.eventBus.off("update_customer");
 		this.eventBus.off("fetch_customer_details");
 		this.eventBus.off("clear_invoice");
+		this.eventBus.off("submit_invoice_with_print");
 		// Cleanup reset_posting_date listener
 		this.eventBus.off("reset_posting_date");
 	},
@@ -1174,6 +1183,9 @@ export default {
 		document.addEventListener("keydown", this.shortDeleteFirstItem.bind(this));
 		document.addEventListener("keydown", this.shortOpenFirstItem.bind(this));
 		document.addEventListener("keydown", this.shortSelectDiscount.bind(this));
+		document.addEventListener("keydown", this.shortOpenCashDrawer.bind(this));
+		document.addEventListener("keydown", this.shortRecallTodaysInvoices.bind(this));
+		document.addEventListener("keydown", this.shortCashPaymentAndPrint.bind(this));
 	},
 	// Remove global keyboard shortcuts when component is unmounted
 	unmounted() {
@@ -1181,6 +1193,9 @@ export default {
 		document.removeEventListener("keydown", this.shortDeleteFirstItem);
 		document.removeEventListener("keydown", this.shortOpenFirstItem);
 		document.removeEventListener("keydown", this.shortSelectDiscount);
+		document.removeEventListener("keydown", this.shortOpenCashDrawer);
+		document.removeEventListener("keydown", this.shortRecallTodaysInvoices);
+		document.removeEventListener("keydown", this.shortCashPaymentAndPrint);
 	},
 	watch: invoiceWatchers,
 };
