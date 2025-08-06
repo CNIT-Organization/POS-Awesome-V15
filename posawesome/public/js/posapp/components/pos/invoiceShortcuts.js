@@ -112,6 +112,24 @@ export default {
 		}
 	},
 
+	// Keyboard shortcut: / key - Edit price
+	shortEditPrice(e) {
+		if (e.key === "/") {
+			e.preventDefault();
+			e.stopPropagation();
+			this.editPrice();
+		}
+	},
+
+	// Keyboard shortcut: . key - Edit quantity
+	shortEditQuantity(e) {
+		if (e.key === ".") {
+			e.preventDefault();
+			e.stopPropagation();
+			this.editQuantity();
+		}
+	},
+
 	// Method to open cash drawer
 	async openCashDrawer() {
 		try {
@@ -185,10 +203,14 @@ export default {
 			message: `
 				<div style="max-height: 300px; overflow-y: auto;">
 					${invoices.map((invoice, index) => `
-						<div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" 
-							 onclick="window.recallInvoice('${invoice.name}')">
-							<strong>${invoice.name}</strong> - ${invoice.customer_name || invoice.customer}<br>
-							<small>${invoice.posting_date} - ${this.formatCurrency(invoice.grand_total)}</small>
+						<div style="padding: 8px; border-bottom: 1px solid #eee; margin-bottom: 8px;">
+							<div style="font-weight: bold;">${invoice.name}</div>
+							<div style="font-size: 12px; color: #666;">${invoice.customer_name || invoice.customer}</div>
+							<div style="font-size: 12px; color: #666;">${invoice.posting_date} - ${this.formatCurrency(invoice.grand_total)}</div>
+							<div style="margin-top: 8px;">
+								<button onclick="window.recallInvoice('${invoice.name}')" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; margin-right: 4px; cursor: pointer;">Return</button>
+								<button onclick="window.printInvoice('${invoice.name}')" style="background: #2196F3; color: white; border: none; padding: 4px 8px; cursor: pointer;">Print</button>
+							</div>
 						</div>
 					`).join('')}
 				</div>
@@ -199,10 +221,14 @@ export default {
 			},
 		});
 
-		// Add global function to recall invoice
+		// Add global functions to recall and print invoice
 		window.recallInvoice = (invoiceName) => {
 			this.loadInvoiceByName(invoiceName);
 			dialog.hide();
+		};
+
+		window.printInvoice = (invoiceName) => {
+			this.printInvoiceByName(invoiceName);
 		};
 	},
 
@@ -234,10 +260,64 @@ export default {
 		}
 	},
 
-	// Method to handle cash payment and print
+	// Method to print invoice by name
+	async printInvoiceByName(invoiceName) {
+		try {
+			const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
+			const letter_head = this.pos_profile.letter_head || 0;
+			const url =
+				frappe.urllib.get_base_url() +
+				"/printview?doctype=Sales%20Invoice&name=" +
+				invoiceName +
+				"&trigger_print=1" +
+				"&format=" +
+				print_format +
+				"&no_letterhead=" +
+				letter_head;
+
+			if (this.pos_profile.posa_silent_print) {
+				// Import silent print if available
+				import("../plugins/print.js").then(({ silentPrint }) => {
+					silentPrint(url);
+				}).catch(() => {
+					// Fallback to regular print
+					const printWindow = window.open(url, "Print");
+					printWindow.addEventListener(
+						"load",
+						function () {
+							printWindow.print();
+						},
+						{ once: true },
+					);
+				});
+			} else {
+				const printWindow = window.open(url, "Print");
+				printWindow.addEventListener(
+					"load",
+					function () {
+						printWindow.print();
+					},
+					{ once: true },
+				);
+			}
+
+			this.eventBus.emit("show_message", {
+				title: __("Printing invoice"),
+				color: "success",
+			});
+		} catch (error) {
+			console.error("Error printing invoice:", error);
+			this.eventBus.emit("show_message", {
+				title: __("Error printing invoice"),
+				color: "error",
+			});
+		}
+	},
+
+	// Method to handle cash payment and print - AUTO SUBMIT VERSION
 	async cashPaymentAndPrint() {
 		try {
-			// First, check if there are items in the invoice
+			// Basic validation
 			if (!this.items || this.items.length === 0) {
 				this.eventBus.emit("show_message", {
 					title: __("Please add items to the invoice first"),
@@ -246,8 +326,7 @@ export default {
 				return;
 			}
 
-			// Check if customer is selected - check both this.customer and invoice_doc.customer
-			if (!this.customer && (!this.invoice_doc || !this.invoice_doc.customer)) {
+			if (!this.customer) {
 				this.eventBus.emit("show_message", {
 					title: __("Please select a customer first"),
 					color: "warning",
@@ -255,19 +334,110 @@ export default {
 				return;
 			}
 
-			// Ensure customer is set in invoice_doc if it's only in this.customer
-			if (this.customer && (!this.invoice_doc || !this.invoice_doc.customer)) {
-				if (!this.invoice_doc) {
-					this.invoice_doc = {};
-				}
-				this.invoice_doc.customer = this.customer;
+			// Calculate total amount
+			const totalAmount = this.items.reduce((sum, item) => {
+				return sum + (item.amount || (item.rate * item.qty) || 0);
+			}, 0);
+
+			// Ensure invoice_doc exists and has proper structure
+			if (!this.invoice_doc) {
+				this.invoice_doc = {};
 			}
 
-			// Set cash payment to the full amount
-			this.setCashPaymentToFullAmount();
+			// Set essential invoice data
+			this.invoice_doc.doctype = "Sales Invoice";
+			this.invoice_doc.customer = this.customer;
+			this.invoice_doc.items = this.items.map(item => ({
+				...item,
+				doctype: "Sales Invoice Item"
+			}));
+			this.invoice_doc.grand_total = totalAmount;
+			this.invoice_doc.total = totalAmount;
+			this.invoice_doc.net_total = totalAmount;
+			this.invoice_doc.rounded_total = totalAmount;
+			this.invoice_doc.base_grand_total = totalAmount;
+			this.invoice_doc.base_total = totalAmount;
+			this.invoice_doc.base_net_total = totalAmount;
+			this.invoice_doc.base_rounded_total = totalAmount;
+			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
+			this.invoice_doc.company = this.pos_profile?.company || "Yes Fresh";
+			this.invoice_doc.conversion_rate = 1;
+			this.invoice_doc.plc_conversion_rate = 1;
+			this.invoice_doc.price_list_currency = this.pos_profile?.currency || "KWD";
+			this.invoice_doc.is_pos = 1;
 
-			// Submit the invoice with print flag
-			this.submitInvoiceWithPrint();
+			// Initialize payments array with default payment methods from POS profile
+			if (!this.invoice_doc.payments) {
+				this.invoice_doc.payments = [];
+			}
+
+			// Add default payment methods from POS profile
+			if (this.pos_profile && this.pos_profile.payments) {
+				this.invoice_doc.payments = this.pos_profile.payments.map(payment => ({
+					...payment,
+					amount: 0,
+					base_amount: 0
+				}));
+			}
+
+			// Set default payment to cash if available
+			const cashPayment = this.invoice_doc.payments.find(p => 
+				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
+			);
+			if (cashPayment) {
+				cashPayment.amount = totalAmount;
+				cashPayment.base_amount = totalAmount;
+				cashPayment.default = 1;
+			}
+
+			// Send the complete invoice document to payment component
+			this.eventBus.emit("send_invoice_doc_payment", this.invoice_doc);
+			
+			// Direct submission with cash payment and print
+			setTimeout(() => {
+				// Use the proper submission method that returns invoice name
+				frappe.call({
+					method: "posawesome.posawesome.api.invoices.submit_invoice",
+					args: {
+						data: {
+							total_change: 0,
+							paid_change: 0,
+							credit_change: 0,
+							redeemed_customer_credit: 0,
+							customer_credit_dict: [],
+							is_cashback: true
+						},
+						invoice: this.invoice_doc
+					},
+					callback: (r) => {
+						if (r.message && r.message.name) {
+							// Print the invoice with the correct name
+							this.printInvoiceByName(r.message.name);
+							
+							// Show success message
+							this.eventBus.emit("show_message", {
+								title: __("Invoice {0} submitted and printed", [r.message.name]),
+								color: "success",
+							});
+							
+							// Clear the invoice
+							this.eventBus.emit("clear_invoice");
+						} else {
+							this.eventBus.emit("show_message", {
+								title: __("Invoice submitted but print failed"),
+								color: "warning",
+							});
+						}
+					},
+					error: (r) => {
+						this.eventBus.emit("show_message", {
+							title: __("Error submitting invoice"),
+							color: "error",
+						});
+					}
+				});
+			}, 300);
+
 		} catch (error) {
 			console.error("Error in cash payment and print:", error);
 			this.eventBus.emit("show_message", {
@@ -277,67 +447,83 @@ export default {
 		}
 	},
 
-	// Helper method to set cash payment to full amount
-	setCashPaymentToFullAmount() {
-		if (!this.invoice_doc) {
-			this.invoice_doc = {};
-		}
-		
-		if (!this.invoice_doc.payments) {
-			// Initialize payments if not exists
-			this.invoice_doc.payments = [];
-		}
-
-		// Calculate total amount from items if not available in invoice_doc
-		let totalAmount = this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0;
-		
-		if (totalAmount === 0 && this.items && this.items.length > 0) {
-			// Calculate from items
-			totalAmount = this.items.reduce((sum, item) => {
-				return sum + (item.amount || (item.rate * item.qty) || 0);
-			}, 0);
-		}
-		
-		// Find cash payment method and set it to full amount
-		let cashPaymentFound = false;
-		this.invoice_doc.payments.forEach((payment) => {
-			if (payment.mode_of_payment.toLowerCase().includes("cash")) {
-				payment.amount = totalAmount;
-				payment.base_amount = totalAmount;
-				cashPaymentFound = true;
+	// Method to edit price
+	editPrice() {
+		if (this.items && this.items.length > 0) {
+			// First, expand the first item if not already expanded
+			const firstItem = this.items[0];
+			if (!this.expanded.includes(firstItem.posa_row_id)) {
+				this.expanded = [firstItem.posa_row_id];
 			}
-		});
-
-		// If no cash payment found, create one
-		if (!cashPaymentFound && this.pos_profile && this.pos_profile.payments) {
-			const cashPayment = this.pos_profile.payments.find(p => 
-				p.mode_of_payment.toLowerCase().includes("cash")
-			);
-			if (cashPayment) {
-				this.invoice_doc.payments.push({
-					mode_of_payment: cashPayment.mode_of_payment,
-					amount: totalAmount,
-					base_amount: totalAmount,
-					type: "Cash"
-				});
-			}
+			
+			// Focus on the first item's price field after a delay to ensure expansion
+			this.$nextTick(() => {
+				setTimeout(() => {
+					// Look for the rate input field in the expanded item details
+					const priceInput = document.querySelector('#rate input, input[id="rate"]');
+					if (priceInput) {
+						priceInput.focus();
+						priceInput.select();
+					} else {
+						this.eventBus.emit("show_message", {
+							title: __("Price field not found. Please expand the item first."),
+							color: "warning",
+						});
+					}
+				}, 100);
+			});
+		} else {
+			this.eventBus.emit("show_message", {
+				title: __("No items to edit"),
+				color: "warning",
+			});
 		}
-
-		// Clear other payment methods
-		this.invoice_doc.payments.forEach((payment) => {
-			if (!payment.mode_of_payment.toLowerCase().includes("cash")) {
-				payment.amount = 0;
-				payment.base_amount = 0;
-			}
-		});
-
-		// Update the display
-		this.$forceUpdate();
 	},
 
-	// Helper method to submit invoice with print
-	submitInvoiceWithPrint() {
-		// Emit event to trigger payment submission with print
-		this.eventBus.emit("submit_invoice_with_print");
+	// Method to edit quantity - Show popup for last item
+	editQuantity() {
+		if (this.items && this.items.length > 0) {
+			// Get the last item (most recently added)
+			const lastItem = this.items[this.items.length - 1];
+			
+			// Show a popup dialog to change quantity
+			frappe.prompt(__("Enter new quantity for {0}", [lastItem.item_name || lastItem.item_code]), 
+				({ value }) => {
+					const newQty = parseFloat(value);
+					if (!isNaN(newQty) && newQty > 0) {
+						// Update the item quantity
+						lastItem.qty = newQty;
+						lastItem.amount = (lastItem.rate || 0) * newQty;
+						lastItem.base_amount = lastItem.amount;
+						
+						// Trigger stock calculation if available
+						if (this.calcStockQty) {
+							this.calcStockQty(lastItem, newQty);
+						}
+						
+						// Force update to refresh the display
+						this.$forceUpdate();
+						
+						this.eventBus.emit("show_message", {
+							title: __("Quantity updated to {0}", [newQty]),
+							color: "success",
+						});
+					} else {
+						this.eventBus.emit("show_message", {
+							title: __("Invalid quantity value"),
+							color: "error",
+						});
+					}
+				},
+				__("Update Quantity"),
+				__("Cancel"),
+				lastItem.qty || 1
+			);
+		} else {
+			this.eventBus.emit("show_message", {
+				title: __("No items to edit"),
+				color: "warning",
+			});
+		}
 	},
 };

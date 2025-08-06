@@ -21,7 +21,9 @@ This document describes the keyboard shortcuts available in POS Awesome.
 #### Invoice Recall
 - **End** - Recall today's invoices
   - Shows a dialog with all invoices from today
-  - Allows you to select and load any invoice from today
+  - Each invoice shows two buttons:
+    - **Return** - Loads the invoice back into the current session
+    - **Print** - Prints the invoice directly
   - Useful for reprinting or modifying today's invoices
 
 #### Quick Cash Payment
@@ -30,6 +32,15 @@ This document describes the keyboard shortcuts available in POS Awesome.
   - Sets the payment amount to the full invoice total
   - Submits the invoice and prints it automatically
   - Requires items to be added and customer to be selected
+
+#### Item Editing
+- **/** (Forward Slash) - Edit price
+  - Focuses on the price field of the first item
+  - Useful for quick price adjustments
+
+- **.** (Period) - Edit quantity
+  - Focuses on the quantity field of the first item
+  - Useful for quick quantity adjustments
 
 ## Implementation Details
 
@@ -43,16 +54,24 @@ The cash drawer functionality uses a placeholder implementation that logs the co
 ### Invoice Recall
 The invoice recall functionality:
 1. Fetches all submitted invoices from today for the current company and user
-2. Shows a selection dialog with invoice details
-3. Allows loading any invoice into the current session
-4. Useful for reprinting receipts or making modifications
+2. Shows a selection dialog with invoice details and action buttons
+3. **Return button**: Loads any invoice into the current session for modification
+4. **Print button**: Prints the invoice directly without loading it
+5. Useful for reprinting receipts or making modifications
 
-### Quick Cash Payment
+### Quick Cash Payment (F4)
 The F4 shortcut:
 1. Validates that items are added and customer is selected
-2. Automatically sets cash payment to the full invoice amount
-3. Clears other payment methods
-4. Submits the invoice and prints it automatically
+2. Opens the payment dialog
+3. Automatically sets cash payment to the full invoice amount
+4. Clears other payment methods
+5. Submits the invoice and prints it automatically
+
+### Item Editing Shortcuts
+- **/** (Forward Slash): Focuses on the price field for quick price editing
+- **.** (Period): Focuses on the quantity field for quick quantity editing
+- Both shortcuts work on the first item in the invoice
+- Provides visual feedback if no items are present
 
 ## Technical Notes
 
@@ -61,6 +80,7 @@ The F4 shortcut:
 - Error handling is included for all operations
 - User feedback is provided through toast messages
 - The shortcuts work with the existing event bus system
+- F4 shortcut uses a simplified approach that opens the payment dialog and then auto-configures cash payment
 
 ## Configuration
 
@@ -68,4 +88,12 @@ The shortcuts are implemented in:
 - `posawesome/public/js/posapp/components/pos/invoiceShortcuts.js` - Shortcut definitions
 - `posawesome/public/js/posapp/components/pos/Invoice.vue` - Event registration
 - `posawesome/public/js/posapp/components/pos/Payments.vue` - Payment handling
-- `posawesome/posawesome/api/invoices.py` - Backend API methods 
+- `posawesome/posawesome/api/invoices.py` - Backend API methods
+
+## Usage Tips
+
+1. **F4 for Quick Sales**: Add items, select customer, press F4 for instant cash payment and print
+2. **End for Invoice Management**: Press End to see today's invoices and quickly return or reprint them
+3. **Home for Cash Drawer**: Press Home to open cash drawer (requires printer setup)
+4. **/** and **.** for Quick Edits**: Use these keys to quickly edit prices and quantities
+5. **Ctrl+E for Discounts**: Use Ctrl+E to quickly focus on the discount field 

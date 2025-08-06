@@ -1478,6 +1478,33 @@ export default {
 				}
 			}
 		},
+		// Method to set cash payment and print (for F4 shortcut)
+		setCashPaymentAndPrint() {
+			if (!this.invoice_doc || !this.invoice_doc.payments) {
+				return;
+			}
+
+			const totalAmount = this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0;
+			
+			// Set cash payment to full amount
+			this.invoice_doc.payments.forEach((payment) => {
+				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
+					payment.amount = totalAmount;
+					payment.base_amount = totalAmount;
+				} else {
+					payment.amount = 0;
+					payment.base_amount = 0;
+				}
+			});
+
+			// Update the display
+			this.$forceUpdate();
+
+			// Submit with print after a short delay
+			setTimeout(() => {
+				this.submit_invoice(true); // true = print
+			}, 200);
+		},
 		// Get available customer credit and auto-allocate
 		get_available_credit(use_credit) {
 			this.clear_all_amounts();
@@ -1967,6 +1994,10 @@ export default {
 			this.eventBus.on("submit_with_print", () => {
 				this.submit_invoice(true); // true = print
 			});
+			// Handle cash payment and print event from F4 shortcut
+			this.eventBus.on("set_cash_payment_and_print", () => {
+				this.setCashPaymentAndPrint();
+			});
 		});
 	},
 	// Lifecycle hook: beforeUnmount
@@ -1982,6 +2013,7 @@ export default {
 		this.eventBus.off("set_mpesa_payment");
 		this.eventBus.off("clear_invoice");
 		this.eventBus.off("submit_with_print");
+		this.eventBus.off("set_cash_payment_and_print");
 		this.eventBus.off("network-online", this.syncPendingInvoices);
 		this.eventBus.off("server-online", this.syncPendingInvoices);
 	},
