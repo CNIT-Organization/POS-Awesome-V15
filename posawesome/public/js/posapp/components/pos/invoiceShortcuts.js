@@ -450,13 +450,15 @@ export default {
 	// Method to edit price
 	editPrice() {
 		if (this.items && this.items.length > 0) {
-			// First, expand the first item if not already expanded
-			const firstItem = this.items[0];
-			if (!this.expanded.includes(firstItem.posa_row_id)) {
-				this.expanded = [firstItem.posa_row_id];
+			// Get the last item (most recently added)
+			const lastItem = this.items[this.items.length - 1];
+			
+			// First, expand the last item if not already expanded
+			if (!this.expanded.includes(lastItem.posa_row_id)) {
+				this.expanded = [lastItem.posa_row_id];
 			}
 			
-			// Focus on the first item's price field after a delay to ensure expansion
+			// Focus on the last item's price field after a delay to ensure expansion
 			this.$nextTick(() => {
 				setTimeout(() => {
 					// Look for the rate input field in the expanded item details
@@ -480,25 +482,25 @@ export default {
 		}
 	},
 
-	// Method to edit quantity - Show popup for last item
+	// Method to edit quantity - Show popup for first item
 	editQuantity() {
 		if (this.items && this.items.length > 0) {
-			// Get the last item (most recently added)
-			const lastItem = this.items[this.items.length - 1];
+			// Get the first item
+			const firstItem = this.items[0];
 			
 			// Show a popup dialog to change quantity
-			frappe.prompt(__("Enter new quantity for {0}", [lastItem.item_name || lastItem.item_code]), 
+			frappe.prompt(__("Enter new quantity for {0}", [firstItem.item_name || firstItem.item_code]), 
 				({ value }) => {
 					const newQty = parseFloat(value);
 					if (!isNaN(newQty) && newQty > 0) {
 						// Update the item quantity
-						lastItem.qty = newQty;
-						lastItem.amount = (lastItem.rate || 0) * newQty;
-						lastItem.base_amount = lastItem.amount;
+						firstItem.qty = newQty;
+						firstItem.amount = (firstItem.rate || 0) * newQty;
+						firstItem.base_amount = firstItem.amount;
 						
 						// Trigger stock calculation if available
 						if (this.calcStockQty) {
-							this.calcStockQty(lastItem, newQty);
+							this.calcStockQty(firstItem, newQty);
 						}
 						
 						// Force update to refresh the display
@@ -517,7 +519,7 @@ export default {
 				},
 				__("Update Quantity"),
 				__("Cancel"),
-				lastItem.qty || 1
+				firstItem.qty || 1
 			);
 		} else {
 			this.eventBus.emit("show_message", {

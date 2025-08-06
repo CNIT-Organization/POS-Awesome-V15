@@ -98,7 +98,7 @@
 							@click="$emit('save-and-clear')"
 							class="summary-btn"
 						>
-							{{ __("Save & Clear") }}
+							{{ __("Hold") }}
 						</v-btn>
 					</v-col>
 					<v-col cols="6">
@@ -110,7 +110,7 @@
 							@click="$emit('load-drafts')"
 							class="white-text-btn summary-btn"
 						>
-							{{ __("Load Drafts") }}
+							{{ __("Release") }}
 						</v-btn>
 					</v-col>
 					<v-col cols="6" v-if="pos_profile.custom_allow_select_sales_order == 1">
