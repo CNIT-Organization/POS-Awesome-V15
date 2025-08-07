@@ -90,7 +90,17 @@
 						elevation="2"
 					>
 						<v-icon start>mdi-check-circle-outline</v-icon>
-						<span>{{ __("Submit") }}</span>
+						<span>{{ __("Submit & Print") }}</span>
+					</v-btn>
+					<v-btn
+						theme="dark"
+						@click="print_preview"
+						class="pos-action-btn info-action-btn"
+						size="large"
+						elevation="2"
+					>
+						<v-icon start>mdi-printer</v-icon>
+						<span>{{ __("Print Preview") }}</span>
 					</v-btn>
 					<v-spacer></v-spacer>
 					<v-btn
@@ -150,6 +160,23 @@ export default {
 		submit_dialog() {
 			this.eventBus.emit("submit_closing_pos", this.dialog_data);
 			this.closingDialog = false;
+		},
+		print_preview() {
+			// Test the cashier shift report format
+			frappe.call({
+				method: "posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.test_cashier_shift_report",
+				callback: (r) => {
+					if (r.message) {
+						const print_url = r.message;
+						// Open in new window for preview
+						const previewWindow = window.open('', "Cashier Shift Report Preview", "width=400,height=600");
+						previewWindow.document.write('<html><head><title>Cashier Shift Report Preview</title></head><body>');
+						previewWindow.document.write('<iframe src="' + print_url + '" width="100%" height="100%" frameborder="0"></iframe>');
+						previewWindow.document.write('</body></html>');
+						previewWindow.document.close();
+					}
+				}
+			});
 		},
 	},
 
@@ -294,6 +321,10 @@ export default {
 
 .submit-action-btn {
 	background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%) !important;
+}
+
+.info-action-btn {
+	background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%) !important;
 }
 
 .submit-action-btn:hover {

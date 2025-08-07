@@ -272,6 +272,8 @@ def submit_closing_shift(closing_shift):
 	closing_shift_doc.flags.ignore_permissions = True
 	closing_shift_doc.save()
 	closing_shift_doc.submit()
+	
+	# Return the closing shift name for frontend to handle printing
 	return closing_shift_doc.name
 
 
@@ -287,3 +289,271 @@ def submit_printed_invoices(pos_opening_shift):
 	for invoice in invoices_list:
 		invoice_doc = frappe.get_doc("Sales Invoice", invoice.name)
 		invoice_doc.submit()
+
+
+@frappe.whitelist()
+def print_cashier_shift_report(closing_shift_name):
+	"""
+	Print the cashier shift report automatically when closing shift
+	"""
+	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+	
+	# Get company and user details
+	company = frappe.get_doc("Company", closing_shift_doc.company)
+	user = frappe.get_doc("User", closing_shift_doc.user)
+	pos_profile = frappe.get_doc("POS Profile", closing_shift_doc.pos_profile)
+	
+	# Get items sold during the shift
+	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
+	
+	# Prepare data for template
+	report_data = {
+		"closing_shift": closing_shift_doc,
+		"company": company,
+		"user": user,
+		"pos_profile": pos_profile,
+		"items_sold": items_sold,
+		"currency": company.default_currency,
+		"report_date": frappe.utils.nowdate(),
+		"report_time": frappe.utils.nowtime()
+	}
+	
+	# Generate HTML content
+	html_content = frappe.render_template(
+		"posawesome/posawesome/doctype/pos_closing_shift/cashier_shift_report.html",
+		report_data
+	)
+	
+	# Create a temporary print format
+	print_format_name = f"temp_cashier_report_{closing_shift_name}"
+	
+	# Check if print format already exists
+	if not frappe.db.exists("Print Format", print_format_name):
+		print_format = frappe.new_doc("Print Format")
+		print_format.name = print_format_name
+		print_format.doc_type = "POS Closing Shift"
+		print_format.format = "HTML"
+		print_format.html = html_content
+		print_format.standard = "No"
+		print_format.save(ignore_permissions=True)
+	else:
+		# Update existing print format
+		print_format = frappe.get_doc("Print Format", print_format_name)
+		print_format.html = html_content
+		print_format.save(ignore_permissions=True)
+	
+	# Generate print URL
+	base_url = frappe.utils.get_url()
+	print_url = f"{base_url}/printview?doctype=POS%20Closing%20Shift&name={closing_shift_name}&format={print_format_name}&trigger_print=1"
+	
+	# Log the print URL for debugging
+	frappe.logger().info(f"Cashier shift report print URL: {print_url}")
+	
+	# Return the print URL for frontend to handle
+	return print_url
+
+
+@frappe.whitelist()
+def direct_print_cashier_shift_report(closing_shift_name):
+	"""
+	Direct print function that generates HTML and returns it for immediate printing
+	"""
+	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+	
+	# Get company and user details
+	company = frappe.get_doc("Company", closing_shift_doc.company)
+	user = frappe.get_doc("User", closing_shift_doc.user)
+	pos_profile = frappe.get_doc("POS Profile", closing_shift_doc.pos_profile)
+	
+	# Get items sold during the shift
+	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
+	
+	# Prepare data for template
+	report_data = {
+		"closing_shift": closing_shift_doc,
+		"company": company,
+		"user": user,
+		"pos_profile": pos_profile,
+		"items_sold": items_sold,
+		"currency": company.default_currency,
+		"report_date": frappe.utils.nowdate(),
+		"report_time": frappe.utils.nowtime()
+	}
+	
+	# Generate HTML content
+	html_content = frappe.render_template(
+		"posawesome/posawesome/doctype/pos_closing_shift/cashier_shift_report.html",
+		report_data
+	)
+	
+	# Return the HTML content for direct printing
+	return html_content
+
+
+def get_items_sold_during_shift(pos_opening_shift):
+	"""
+	Get items sold during the shift with quantities and amounts
+	"""
+	# Get all invoices for this shift
+	invoices = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"posa_pos_opening_shift": pos_opening_shift,
+			"docstatus": 1,  # Submitted invoices only
+		},
+		fields=["name"]
+	)
+	
+	items_summary = {}
+	
+	for invoice in invoices:
+		invoice_doc = frappe.get_doc("Sales Invoice", invoice.name)
+		for item in invoice_doc.items:
+			item_key = item.item_code
+			if item_key not in items_summary:
+				items_summary[item_key] = {
+					"item_name": item.item_name,
+					"qty": 0,
+					"amount": 0
+				}
+			items_summary[item_key]["qty"] += item.qty
+			items_summary[item_key]["amount"] += item.amount
+	
+	# Convert to list and sort by amount
+	items_list = []
+	for item_code, data in items_summary.items():
+		items_list.append({
+			"item_code": item_code,
+			"item_name": data["item_name"],
+			"qty": data["qty"],
+			"amount": data["amount"]
+		})
+	
+	# Sort by amount descending
+	items_list.sort(key=lambda x: x["amount"], reverse=True)
+	
+	return items_list
+
+
+@frappe.whitelist()
+def test_cashier_shift_report():
+	"""
+	Test function to generate a sample cashier shift report
+	"""
+	# Get the latest closing shift for testing
+	latest_closing_shift = frappe.get_all(
+		"POS Closing Shift",
+		filters={"docstatus": 1},
+		fields=["name"],
+		order_by="creation desc",
+		limit=1
+	)
+	
+	if latest_closing_shift:
+		closing_shift_name = latest_closing_shift[0].name
+		closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+		
+		# Get company and user details
+		company = frappe.get_doc("Company", closing_shift_doc.company)
+		user = frappe.get_doc("User", closing_shift_doc.user)
+		pos_profile = frappe.get_doc("POS Profile", closing_shift_doc.pos_profile)
+		
+		# Get items sold during the shift
+		items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
+		
+		# Prepare data for template
+		report_data = {
+			"closing_shift": closing_shift_doc,
+			"company": company,
+			"user": user,
+			"pos_profile": pos_profile,
+			"items_sold": items_sold,
+			"currency": company.default_currency,
+			"report_date": frappe.utils.nowdate(),
+			"report_time": frappe.utils.nowtime()
+		}
+	else:
+		# Fallback to sample data if no closing shift exists
+		report_data = {
+			"closing_shift": {
+				"grand_total": 700.00,
+				"net_total": 700.00,
+				"total_quantity": 25,
+				"opening_amount": 100.00,
+				"period_start_date": "2025-08-07 08:00:00",
+				"period_end_date": "2025-08-07 20:00:00",
+				"payment_reconciliation": [
+					{
+						"mode_of_payment": "Cash",
+						"closing_amount": 678.00,
+						"difference": -4.27,
+						"expected_amount": 673.73
+					},
+					{
+						"mode_of_payment": "Knet",
+						"closing_amount": 0.00,
+						"difference": 0.00,
+						"expected_amount": 0.00
+					}
+				]
+			},
+			"company": {
+				"name": "Yes Fresh",
+				"company_name": "Yes Fresh",
+				"default_currency": "KWD"
+			},
+			"user": {
+				"name": "Administrator",
+				"full_name": "Administrator"
+			},
+			"pos_profile": {
+				"company_address": "SAS test"
+			},
+			"items_sold": [
+				{
+					"item_name": "Fresh Vegetables",
+					"qty": 10,
+					"amount": 500.00
+				},
+				{
+					"item_name": "Organic Fruits",
+					"qty": 5,
+					"amount": 250.00
+				},
+				{
+					"item_name": "Dairy Products",
+					"qty": 20,
+					"amount": 750.00
+				}
+			],
+			"currency": "KWD",
+			"report_date": "2025-08-07",
+			"report_time": "20:45:00"
+		}
+	
+	html_content = frappe.render_template(
+		"posawesome/posawesome/doctype/pos_closing_shift/cashier_shift_report.html",
+		report_data
+	)
+	
+	# Create a test print format
+	print_format_name = "test_cashier_report"
+	
+	if not frappe.db.exists("Print Format", print_format_name):
+		print_format = frappe.new_doc("Print Format")
+		print_format.name = print_format_name
+		print_format.doc_type = "POS Closing Shift"
+		print_format.format = "HTML"
+		print_format.html = html_content
+		print_format.standard = "No"
+		print_format.save(ignore_permissions=True)
+	else:
+		print_format = frappe.get_doc("Print Format", print_format_name)
+		print_format.html = html_content
+		print_format.save(ignore_permissions=True)
+	
+	# Return the test print URL
+	base_url = frappe.utils.get_url()
+	print_url = f"{base_url}/printview?doctype=POS%20Closing%20Shift&name=test&format={print_format_name}&trigger_print=0"
+	
+	return print_url

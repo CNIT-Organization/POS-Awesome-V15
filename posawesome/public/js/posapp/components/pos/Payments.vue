@@ -1242,6 +1242,12 @@ export default {
 			if (this.invoice_doc.is_return && totalPayedAmount === 0) {
 				this.invoice_doc.is_pos = 0;
 			}
+			
+			// Ensure is_pos is set correctly for credit sales
+			if (this.is_credit_sale) {
+				this.invoice_doc.is_pos = 1;
+			}
+			
 			if (this.customer_credit_dict.length) {
 				this.customer_credit_dict.forEach((row) => {
 					row.credit_to_redeem = this.flt(row.credit_to_redeem);
@@ -1254,6 +1260,7 @@ export default {
 				redeemed_customer_credit: this.redeemed_customer_credit,
 				customer_credit_dict: this.customer_credit_dict,
 				is_cashback: this.is_cashback,
+				is_credit_sale: this.is_credit_sale, // Add credit sale flag to data
 			};
 			const vm = this;
 

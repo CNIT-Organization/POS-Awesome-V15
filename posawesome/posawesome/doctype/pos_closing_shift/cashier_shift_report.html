@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Daily Shift Report</title>
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 0;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 9px;
+            line-height: 1.1;
+            margin: 0;
+            padding: 2mm;
+            color: #000;
+            background: white;
+            width: 76mm;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+        }
+        
+        .company-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .company-location {
+            font-size: 9px;
+            margin: 2px 0;
+        }
+        
+        .report-title {
+            font-size: 11px;
+            font-weight: bold;
+            margin: 4px 0;
+        }
+        
+        .report-info {
+            font-size: 8px;
+            margin: 2px 0;
+        }
+        
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 6px 0;
+        }
+        
+        .section {
+            margin: 8px 0;
+        }
+        
+        .section-title {
+            font-size: 9px;
+            font-weight: bold;
+            margin: 6px 0 4px 0;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0;
+            font-size: 8px;
+        }
+        
+        .items-table th,
+        .items-table td {
+            border: none;
+            padding: 1px 0;
+            text-align: left;
+            font-size: 8px;
+        }
+        
+        .items-table th {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+        }
+        
+        .item-row {
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .item-name {
+            width: 55%;
+            text-align: left;
+        }
+        
+        .item-qty {
+            width: 15%;
+            text-align: center;
+        }
+        
+        .item-amount {
+            width: 30%;
+            text-align: right;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding-top: 2px;
+            padding-bottom: 2px;
+        }
+        
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0;
+            font-size: 8px;
+        }
+        
+        .payment-table th,
+        .payment-table td {
+            border: none;
+            padding: 1px 0;
+            text-align: left;
+            font-size: 8px;
+        }
+        
+        .payment-table th {
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+        }
+        
+        .payment-row {
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .payment-type {
+            width: 45%;
+        }
+        
+        .payment-amount {
+            width: 18%;
+            text-align: right;
+        }
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0;
+            font-size: 8px;
+        }
+        
+        .summary-table td {
+            border: none;
+            padding: 1px 0;
+            font-size: 8px;
+        }
+        
+        .summary-label {
+            width: 65%;
+            font-weight: bold;
+        }
+        
+        .summary-value {
+            width: 35%;
+            text-align: right;
+        }
+        
+        .signature-section {
+            margin-top: 12px;
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-top: 1px solid #000;
+            width: 35mm;
+            margin: 8px auto 2px auto;
+        }
+        
+        .signature-label {
+            font-size: 8px;
+            font-weight: bold;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-left {
+            text-align: left;
+        }
+        
+        .bold {
+            font-weight: bold;
+        }
+        
+        .small {
+            font-size: 7px;
+        }
+        
+        .footer {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 7px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company-name">{{ company.company_name or company.name }}</div>
+        <div class="company-location">{{ pos_profile.company_address or company.company_address or "" }}</div>
+        <div class="report-title">DAILY SHIFT REPORT</div>
+        <div class="report-info">
+            Date: {{ frappe.utils.formatdate(report_date) }}<br>
+            Time: {{ frappe.utils.format_time(report_time) }}<br>
+            Cashier: {{ user.full_name or user.name }}
+        </div>
+    </div>
+
+
+
+    <!-- Opening Balance Section -->
+    <div class="section">
+        <div class="section-title">OPENING BALANCE</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Opening Amount:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.opening_amount or 0, currency=currency) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Cash Sales Section -->
+    <div class="section">
+        <div class="section-title">CASH SALES</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Cash Sales Total:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.grand_total or 0, currency=currency) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Cash Drawer Reconciliation Section -->
+    <div class="section">
+        <div class="section-title">CASH DRAWER RECONCILIATION</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Opening Amount:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.opening_amount or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Cash Sales:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.grand_total or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Subtotal:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money((closing_shift.opening_amount or 0) + (closing_shift.grand_total or 0), currency=currency) }}</td>
+            </tr>
+            {% for payment in closing_shift.payment_reconciliation %}
+            {% if payment.mode_of_payment.lower() == 'cash' %}
+            <tr>
+                <td class="summary-label">Cash Payments:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(payment.expected_amount or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Expected Cash in Drawer:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money((closing_shift.opening_amount or 0) + (payment.expected_amount or 0), currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Cashier Closing Amount:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(payment.closing_amount or 0, currency=currency) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td class="summary-label"><strong>Cash Over/Short:</strong></td>
+                <td class="summary-value"><strong>{{ frappe.utils.fmt_money((payment.closing_amount or 0) - ((closing_shift.opening_amount or 0) + (payment.expected_amount or 0)), currency=currency) }}</strong></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Payment Differences Section -->
+    <div class="section">
+        <div class="section-title">PAYMENT DIFFERENCES</div>
+        <table class="payment-table">
+            <thead>
+                <tr>
+                    <th class="payment-type">Payment Type</th>
+                    <th class="payment-amount">Difference</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in closing_shift.payment_reconciliation %}
+                {% if payment.difference and payment.difference != 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">{{ payment.mode_of_payment[:12] }}{% if payment.mode_of_payment|length > 12 %}...{% endif %}</td>
+                    <td class="payment-amount">{{ frappe.utils.fmt_money(payment.difference or 0, currency=currency) }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td class="payment-type"><strong>TOTAL DIFFERENCE:</strong></td>
+                    <td class="payment-amount"><strong>{{ frappe.utils.fmt_money(closing_shift.payment_reconciliation | sum(attribute='difference'), currency=currency) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Summary Section -->
+    <div class="section">
+        <div class="section-title">SUMMARY</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Grand Total:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.grand_total or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Net Total:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.net_total or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Total Quantity:</td>
+                <td class="summary-value">{{ closing_shift.total_quantity or 0 }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Shift Period:</td>
+                <td class="summary-value small">{{ frappe.utils.format_datetime(closing_shift.period_start_date)[:16] }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label"></td>
+                <td class="summary-value small">{{ frappe.utils.format_datetime(closing_shift.period_end_date)[:16] }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Items Sold Section -->
+    <div class="section">
+        <div class="section-title">ITEMS SOLD</div>
+        {% if items_sold %}
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="item-name">Item Name</th>
+                    <th class="item-qty">Qty</th>
+                    <th class="item-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items_sold %}
+                <tr class="item-row">
+                    <td class="item-name">{{ item.item_name[:20] }}{% if item.item_name|length > 20 %}...{% endif %}</td>
+                    <td class="item-qty">{{ item.qty }}</td>
+                    <td class="item-amount">{{ frappe.utils.fmt_money(item.amount, currency=currency) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td class="item-name"><strong>TOTAL ITEMS SOLD:</strong></td>
+                    <td class="item-qty"><strong>{{ items_sold | sum(attribute='qty') }}</strong></td>
+                    <td class="item-amount"><strong>{{ frappe.utils.fmt_money(items_sold | sum(attribute='amount'), currency=currency) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div class="text-center small" style="font-style: italic; color: #666;">
+            No items sold during this shift
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+        <div class="signature-line"></div>
+        <div class="signature-label">Cashier's Name & Signature</div>
+    </div>
+
+    <div class="divider"></div>
+    
+    <div class="footer">
+        Thank you for using POS Awesome
+    </div>
+</body>
+</html> 

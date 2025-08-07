@@ -127,6 +127,28 @@
 					</div>
 				</v-list-item>
 
+				<!-- Keyboard shortcuts menu item -->
+				<v-list-item @click="$emit('show-shortcuts')" class="menu-item-compact info-action">
+					<template v-slot:prepend>
+						<div class="menu-icon-wrapper-compact info-icon">
+							<v-icon color="white" size="16">mdi-keyboard</v-icon>
+						</div>
+					</template>
+					<div class="menu-content-compact">
+						<v-list-item-title class="menu-item-title-compact">{{
+							__("Keyboard Shortcuts")
+						}}</v-list-item-title>
+						<v-list-item-subtitle class="menu-item-subtitle-compact">{{
+							__("View all available shortcuts")
+						}}</v-list-item-subtitle>
+					</div>
+					<template v-slot:append>
+						<v-chip size="small" color="primary" variant="outlined" class="shortcut-chip">
+							F1
+						</v-chip>
+					</template>
+				</v-list-item>
+
 				<!-- Theme toggle menu item -->
 				<v-list-item @click="$emit('toggle-theme')" class="menu-item-compact info-action">
 					<template v-slot:prepend>
@@ -189,6 +211,7 @@ export default {
 		"show-about",
 		"toggle-theme",
 		"logout",
+		"show-shortcuts",
 	],
 };
 </script>
@@ -588,5 +611,21 @@ export default {
 :deep(.v-theme--dark) .warning-icon {
 	background: linear-gradient(135deg, #ffb74d 0%, #ffc107 100%);
 	box-shadow: 0 2px 6px rgba(255, 183, 77, 0.3);
+}
+
+/* Shortcut chip styling */
+.shortcut-chip {
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	height: 20px;
+	min-width: 24px;
+	border-width: 1px;
+}
+
+:deep(.dark-theme) .shortcut-chip,
+:deep(.v-theme--dark) .shortcut-chip {
+	border-color: rgba(144, 202, 249, 0.5);
+	color: var(--primary-light, #90caf9);
 }
 </style>

@@ -830,6 +830,15 @@ def submit_invoice(invoice, data):
 
 	invoice_doc.remarks = "\n".join(items)
 
+	# Handle credit sales - ensure is_pos remains 1 for credit sales
+	if data.get("is_credit_sale"):
+		invoice_doc.is_pos = 1
+		# Clear all payment amounts for credit sales
+		for payment in invoice_doc.payments:
+			payment.amount = 0
+			if hasattr(payment, 'base_amount'):
+				payment.base_amount = 0
+
 	# creating advance payment
 	if data.get("credit_change"):
 		advance_payment_entry = frappe.get_doc(
@@ -873,7 +882,9 @@ def submit_invoice(invoice, data):
 				advance_row = invoice_doc.append("advances", {})
 				advance_row.update(advance_payment)
 				ensure_child_doctype(invoice_doc, "advances", "Sales Invoice Advance")
-				invoice_doc.is_pos = 0
+				# Only set is_pos = 0 if it's not a credit sale
+				if not data.get("is_credit_sale"):
+					invoice_doc.is_pos = 0
 				is_payment_entry = 1
 
 	payments = invoice_doc.payments

@@ -47,6 +47,7 @@
 					@show-about="showAboutDialog = true"
 					@toggle-theme="toggleTheme"
 					@logout="logOut"
+					@show-shortcuts="handleShowShortcuts"
 				/>
 			</template>
 		</NavbarAppBar>
@@ -265,6 +266,9 @@ export default {
 		logOut() {
 			this.$emit("logout");
 		},
+		handleShowShortcuts() {
+			this.$emit("show-shortcuts");
+		},
 		refreshCacheUsage() {
 			this.$emit("refresh-cache-usage");
 		},
@@ -316,6 +320,7 @@ export default {
 		"logout",
 		"refresh-cache-usage",
 		"update-after-delete",
+		"show-shortcuts",
 	],
 };
 </script>

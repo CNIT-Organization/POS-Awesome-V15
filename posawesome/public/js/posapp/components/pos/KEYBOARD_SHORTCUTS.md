@@ -4,6 +4,12 @@ This document describes the keyboard shortcuts available in POS Awesome.
 
 ## General Shortcuts
 
+### Help and Information
+- **F1** - Show comprehensive shortcuts help dialog
+  - Displays all available shortcuts organized by category
+  - Includes pro tips and usage recommendations
+  - Option to print shortcuts for reference
+
 ### Payment and Invoice Management
 - **Ctrl+S** - Open payment dialog
 - **Ctrl+X** - Submit payment (when in payment screen)
@@ -39,8 +45,15 @@ This document describes the keyboard shortcuts available in POS Awesome.
   - Useful for quick price adjustments
 
 - **.** (Period) - Edit quantity
-  - Focuses on the quantity field of the first item
+  - Shows a popup dialog to change quantity of the first item
   - Useful for quick quantity adjustments
+
+## Visual Shortcuts Button
+
+A **"Shortcuts"** button has been added to the POS interface that:
+- Shows the same comprehensive shortcuts help as F1
+- Provides easy access for users who prefer clicking over keyboard shortcuts
+- Located in the invoice summary section with other action buttons
 
 ## Implementation Details
 
@@ -69,9 +82,17 @@ The F4 shortcut:
 
 ### Item Editing Shortcuts
 - **/** (Forward Slash): Focuses on the price field for quick price editing
-- **.** (Period): Focuses on the quantity field for quick quantity editing
+- **.** (Period): Shows a popup dialog for quick quantity editing
 - Both shortcuts work on the first item in the invoice
 - Provides visual feedback if no items are present
+
+### Shortcuts Help (F1)
+The F1 shortcut:
+1. Shows a comprehensive dialog with all available shortcuts
+2. Organizes shortcuts by category (Quick Actions, Item Management, Payment & Invoice, etc.)
+3. Includes pro tips and usage recommendations
+4. Provides option to print shortcuts for reference
+5. Also accessible via the "Shortcuts" button in the interface
 
 ## Technical Notes
 
@@ -88,12 +109,30 @@ The shortcuts are implemented in:
 - `posawesome/public/js/posapp/components/pos/invoiceShortcuts.js` - Shortcut definitions
 - `posawesome/public/js/posapp/components/pos/Invoice.vue` - Event registration
 - `posawesome/public/js/posapp/components/pos/Payments.vue` - Payment handling
+- `posawesome/public/js/posapp/components/pos/InvoiceSummary.vue` - Shortcuts button
 - `posawesome/posawesome/api/invoices.py` - Backend API methods
 
 ## Usage Tips
 
-1. **F4 for Quick Sales**: Add items, select customer, press F4 for instant cash payment and print
-2. **End for Invoice Management**: Press End to see today's invoices and quickly return or reprint them
-3. **Home for Cash Drawer**: Press Home to open cash drawer (requires printer setup)
-4. **/** and **.** for Quick Edits**: Use these keys to quickly edit prices and quantities
-5. **Ctrl+E for Discounts**: Use Ctrl+E to quickly focus on the discount field 
+1. **F1 for Help**: Press F1 anytime to see all available shortcuts
+2. **F4 for Quick Sales**: Add items, select customer, press F4 for instant cash payment and print
+3. **End for Invoice Management**: Press End to see today's invoices and quickly return or reprint them
+4. **/** and **.** for Quick Edits**: Use these keys to quickly edit the first item's price and quantity
+5. **Home for Cash Drawer**: Press Home to open the cash drawer (requires printer setup)
+6. **Shortcuts Button**: Click the "Shortcuts" button for visual access to all shortcuts
+
+## Shortcuts Summary
+
+| Key | Action | Category |
+|-----|--------|----------|
+| F1 | Show shortcuts help | Help |
+| F4 | Quick cash payment & print | Quick Actions |
+| Home | Open cash drawer | Quick Actions |
+| End | Recall today's invoices | Quick Actions |
+| / | Edit price of first item | Item Management |
+| . | Edit quantity of first item | Item Management |
+| Ctrl+A | Toggle first item details | Item Management |
+| Ctrl+D | Delete first item | Item Management |
+| Ctrl+S | Open payment dialog | Payment & Invoice |
+| Ctrl+E | Focus discount field | Payment & Invoice |
+| Ctrl+X | Submit payment | Payment & Invoice | 

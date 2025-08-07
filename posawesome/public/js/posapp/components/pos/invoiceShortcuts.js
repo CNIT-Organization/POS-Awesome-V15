@@ -130,6 +130,183 @@ export default {
 		}
 	},
 
+	// Keyboard shortcut: F1 key - Show all shortcuts help
+	shortShowShortcutsHelp(e) {
+		if (e.key === "F1") {
+			e.preventDefault();
+			e.stopPropagation();
+			this.showShortcutsHelp();
+		}
+	},
+
+	// Method to show comprehensive shortcuts help dialog
+	showShortcutsHelp() {
+		const shortcuts = [
+			{
+				category: "🎯 Quick Actions",
+				shortcuts: [
+					{ key: "F1", description: "Show this shortcuts help dialog" },
+					{ key: "F4", description: "Quick cash payment → submit → print" },
+					{ key: "Home", description: "Open cash drawer" },
+					{ key: "End", description: "Recall today's invoices with Return/Print options" }
+				]
+			},
+			{
+				category: "📝 Item Management",
+				shortcuts: [
+					{ key: "/", description: "Edit price of first item" },
+					{ key: ".", description: "Edit quantity of first item (popup)" },
+					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
+					{ key: "Ctrl+D", description: "Delete first item from invoice" }
+				]
+			},
+			{
+				category: "💰 Payment & Invoice",
+				shortcuts: [
+					{ key: "Ctrl+S", description: "Open payment dialog" },
+					{ key: "Ctrl+E", description: "Focus discount field" },
+					{ key: "Ctrl+X", description: "Submit payment (when in payment screen)" }
+				]
+			},
+			{
+				category: "🖨️ Printing & Receipts",
+				shortcuts: [
+					{ key: "F4", description: "Auto-print after cash payment" },
+					{ key: "End → Print", description: "Print any today's invoice" }
+				]
+			},
+			{
+				category: "💾 Invoice Management",
+				shortcuts: [
+					{ key: "End → Return", description: "Load any today's invoice back to POS" },
+					{ key: "Hold Button", description: "Save current invoice as draft and clear" },
+					{ key: "Release Button", description: "Load previously saved draft invoices" }
+				]
+			}
+		];
+
+		let helpContent = `
+			<div style="max-height: 70vh; overflow-y: auto; font-family: Arial, sans-serif;">
+				<div style="text-align: center; margin-bottom: 20px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px;">
+					<h2 style="margin: 0; font-size: 24px;">🎯 POS Awesome Keyboard Shortcuts</h2>
+					<p style="margin: 5px 0 0 0; opacity: 0.9;">Master your POS workflow with these powerful shortcuts</p>
+				</div>
+		`;
+
+		shortcuts.forEach(category => {
+			helpContent += `
+				<div style="margin-bottom: 25px; background: #f8f9fa; border-radius: 8px; padding: 15px; border-left: 4px solid #667eea;">
+					<h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">${category.category}</h3>
+					<div style="display: grid; gap: 8px;">
+			`;
+			
+			category.shortcuts.forEach(shortcut => {
+				helpContent += `
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border-radius: 6px; border: 1px solid #e9ecef;">
+						<span style="font-weight: bold; color: #495057; min-width: 120px; text-align: center; padding: 4px 8px; background: #e9ecef; border-radius: 4px; font-family: 'Courier New', monospace;">${shortcut.key}</span>
+						<span style="color: #6c757d; margin-left: 15px;">${shortcut.description}</span>
+					</div>
+				`;
+			});
+			
+			helpContent += `
+					</div>
+				</div>
+			`;
+		});
+
+		helpContent += `
+				<div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+					<h4 style="margin: 0 0 10px 0; color: #856404;">💡 Pro Tips:</h4>
+					<ul style="margin: 0; padding-left: 20px; color: #856404;">
+						<li>Use <strong>F4</strong> for quick cash transactions</li>
+						<li>Press <strong>End</strong> to find and reprint today's invoices</li>
+						<li>Use <strong>/</strong> and <strong>.</strong> to quickly edit first item</li>
+						<li>Hold invoices for later with the <strong>Hold</strong> button</li>
+					</ul>
+				</div>
+			</div>
+		`;
+
+		const dialog = frappe.msgprint({
+			title: __("POS Awesome Keyboard Shortcuts"),
+			message: helpContent,
+			primary_action: {
+				label: __("Got it!"),
+				action: () => dialog.hide(),
+			},
+			secondary_action: {
+				label: __("Print Shortcuts"),
+				action: () => this.printShortcutsHelp(),
+			},
+		});
+	},
+
+	// Method to print shortcuts help
+	printShortcutsHelp() {
+		const shortcuts = [
+			{ key: "F1", description: "Show shortcuts help" },
+			{ key: "F4", description: "Quick cash payment → submit → print" },
+			{ key: "Home", description: "Open cash drawer" },
+			{ key: "End", description: "Recall today's invoices" },
+			{ key: "/", description: "Edit price of first item" },
+			{ key: ".", description: "Edit quantity of first item" },
+			{ key: "Ctrl+A", description: "Toggle first item details" },
+			{ key: "Ctrl+D", description: "Delete first item" },
+			{ key: "Ctrl+S", description: "Open payment dialog" },
+			{ key: "Ctrl+E", description: "Focus discount field" },
+			{ key: "Ctrl+X", description: "Submit payment" }
+		];
+
+		let printContent = `
+			<html>
+			<head>
+				<title>POS Awesome Shortcuts</title>
+				<style>
+					body { font-family: Arial, sans-serif; margin: 20px; }
+					.header { text-align: center; margin-bottom: 30px; }
+					.shortcut { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+					.key { font-weight: bold; background: #f0f0f0; padding: 5px 10px; border-radius: 3px; }
+					.description { margin-left: 10px; }
+					.category { margin: 20px 0; font-weight: bold; font-size: 18px; }
+				</style>
+			</head>
+			<body>
+				<div class="header">
+					<h1>🎯 POS Awesome Keyboard Shortcuts</h1>
+					<p>Master your POS workflow with these powerful shortcuts</p>
+				</div>
+		`;
+
+		shortcuts.forEach(shortcut => {
+			printContent += `
+				<div class="shortcut">
+					<span class="key">${shortcut.key}</span>
+					<span class="description">${shortcut.description}</span>
+				</div>
+			`;
+		});
+
+		printContent += `
+				<div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+					<h3>💡 Pro Tips:</h3>
+					<ul>
+						<li>Use F4 for quick cash transactions</li>
+						<li>Press End to find and reprint today's invoices</li>
+						<li>Use / and . to quickly edit first item</li>
+						<li>Hold invoices for later with the Hold button</li>
+					</ul>
+				</div>
+			</body>
+			</html>
+		`;
+
+		const printWindow = window.open('', '_blank');
+		printWindow.document.write(printContent);
+		printWindow.document.close();
+		printWindow.print();
+	},
+
 	// Method to open cash drawer
 	async openCashDrawer() {
 		try {

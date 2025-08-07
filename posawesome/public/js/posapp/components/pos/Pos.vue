@@ -213,11 +213,45 @@ export default {
 							title: `POS Shift Closed`,
 							color: "success",
 						});
+						
+						// Auto-print the cashier shift report
+						this.print_cashier_shift_report(r.message);
+						
 						this.check_opening_entry();
 					} else {
 						console.log(r);
 					}
 				});
+		},
+		
+		print_cashier_shift_report(closing_shift_name) {
+			// Get the HTML content directly from backend
+			frappe.call({
+				method: "posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.direct_print_cashier_shift_report",
+				args: {
+					closing_shift_name: closing_shift_name
+				},
+				callback: (r) => {
+					if (r.message) {
+						const html_content = r.message;
+						
+						// Create a new window with the HTML content
+						const printWindow = window.open('', '_blank', 'width=400,height=600');
+						printWindow.document.write(html_content);
+						printWindow.document.close();
+						
+						// Wait for content to load then print
+						printWindow.onload = function() {
+							printWindow.print();
+						};
+						
+						// Fallback if onload doesn't work
+						setTimeout(() => {
+							printWindow.print();
+						}, 1000);
+					}
+				}
+			});
 		},
 		get_offers(pos_profile) {
 			// Load cached offers if available

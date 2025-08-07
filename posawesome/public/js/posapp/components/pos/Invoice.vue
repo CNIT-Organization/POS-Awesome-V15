@@ -1164,6 +1164,11 @@ export default {
 				this.eventBus.emit("submit_with_print");
 			}, 100);
 		});
+
+		// Listen for shortcuts help request from navbar
+		this.eventBus.on("show_shortcuts_help", () => {
+			this.showShortcutsHelp();
+		});
 	},
 	// Cleanup event listeners before component is destroyed
 	beforeUnmount() {
@@ -1188,6 +1193,7 @@ export default {
 		document.addEventListener("keydown", this.shortCashPaymentAndPrint.bind(this));
 		document.addEventListener("keydown", this.shortEditPrice.bind(this));
 		document.addEventListener("keydown", this.shortEditQuantity.bind(this));
+		document.addEventListener("keydown", this.shortShowShortcutsHelp.bind(this));
 	},
 	// Remove global keyboard shortcuts when component is unmounted
 	unmounted() {
@@ -1200,6 +1206,7 @@ export default {
 		document.removeEventListener("keydown", this.shortCashPaymentAndPrint);
 		document.removeEventListener("keydown", this.shortEditPrice);
 		document.removeEventListener("keydown", this.shortEditQuantity);
+		document.removeEventListener("keydown", this.shortShowShortcutsHelp);
 	},
 	watch: invoiceWatchers,
 };

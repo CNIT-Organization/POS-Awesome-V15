@@ -25,6 +25,7 @@
 				@logout="handleLogout"
 				@refresh-cache-usage="handleRefreshCacheUsage"
 				@update-after-delete="handleUpdateAfterDelete"
+				@show-shortcuts="handleShowShortcuts"
 			/>
 			<div class="page-content">
 				<component v-bind:is="page" class="mx-4 md-4"></component>
@@ -619,6 +620,11 @@ export default {
 
 		handleUpdateAfterDelete() {
 			// Handle update after delete
+		},
+
+		handleShowShortcuts() {
+			// Emit event to show shortcuts help
+			this.eventBus.emit("show_shortcuts_help");
 		},
 
 		remove_frappe_nav() {
