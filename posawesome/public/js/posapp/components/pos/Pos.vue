@@ -1,4 +1,4 @@
-<template>
+	<template>
 	<div class="pos-main-container dynamic-container" :style="responsiveStyles">
 		<ClosingDialog></ClosingDialog>
 		<Drafts></Drafts>

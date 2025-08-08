@@ -226,15 +226,13 @@
         </div>
     </div>
 
-
-
     <!-- Opening Balance Section -->
     <div class="section">
         <div class="section-title">OPENING BALANCE</div>
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Opening Amount:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.opening_amount or 0, currency=currency) }}</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.payment_reconciliation | sum(attribute='opening_amount'), currency=currency) }}</td>
             </tr>
         </table>
     </div>
@@ -254,39 +252,74 @@
 
     <div class="divider"></div>
 
-    <!-- Cash Drawer Reconciliation Section -->
+    <!-- Credit Sales Section -->
     <div class="section">
-        <div class="section-title">CASH DRAWER RECONCILIATION</div>
+        <div class="section-title">CREDIT SALES</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Credit Sales Total:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.credit_sales_total or 0, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Unpaid Invoices:</td>
+                <td class="summary-value">{{ closing_shift.unpaid_invoices_count or 0 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Expected Cash in Drawer Section -->
+    <div class="section">
+        <div class="section-title">EXPECTED CASH IN DRAWER</div>
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Opening Amount:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.opening_amount or 0, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Cash Sales:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.grand_total or 0, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Subtotal:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money((closing_shift.opening_amount or 0) + (closing_shift.grand_total or 0), currency=currency) }}</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.payment_reconciliation | sum(attribute='opening_amount'), currency=currency) }}</td>
             </tr>
             {% for payment in closing_shift.payment_reconciliation %}
             {% if payment.mode_of_payment.lower() == 'cash' %}
             <tr>
-                <td class="summary-label">Cash Payments:</td>
+                <td class="summary-label">Cash Sales:</td>
                 <td class="summary-value">{{ frappe.utils.fmt_money(payment.expected_amount or 0, currency=currency) }}</td>
             </tr>
-            <tr>
-                <td class="summary-label">Expected Cash in Drawer:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money((closing_shift.opening_amount or 0) + (payment.expected_amount or 0), currency=currency) }}</td>
+            <tr class="total-row">
+                <td class="summary-label"><strong>Expected Cash in Drawer:</strong></td>
+                <td class="summary-value"><strong>{{ frappe.utils.fmt_money((closing_shift.payment_reconciliation | sum(attribute='opening_amount')) + (payment.expected_amount or 0), currency=currency) }}</strong></td>
             </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Cashier Closing Amount Section -->
+    <div class="section">
+        <div class="section-title">CASHIER CLOSING AMOUNT</div>
+        <table class="summary-table">
+            {% for payment in closing_shift.payment_reconciliation %}
+            {% if payment.mode_of_payment.lower() == 'cash' %}
             <tr>
                 <td class="summary-label">Cashier Closing Amount:</td>
                 <td class="summary-value">{{ frappe.utils.fmt_money(payment.closing_amount or 0, currency=currency) }}</td>
             </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Cash Over/Short Section -->
+    <div class="section">
+        <div class="section-title">CASH OVER/SHORT</div>
+        <table class="summary-table">
+            {% for payment in closing_shift.payment_reconciliation %}
+            {% if payment.mode_of_payment.lower() == 'cash' %}
             <tr class="total-row">
                 <td class="summary-label"><strong>Cash Over/Short:</strong></td>
-                <td class="summary-value"><strong>{{ frappe.utils.fmt_money((payment.closing_amount or 0) - ((closing_shift.opening_amount or 0) + (payment.expected_amount or 0)), currency=currency) }}</strong></td>
+                <td class="summary-value"><strong>{{ frappe.utils.fmt_money((payment.closing_amount or 0) - ((closing_shift.payment_reconciliation | sum(attribute='opening_amount')) + (payment.expected_amount or 0)), currency=currency) }}</strong></td>
             </tr>
             {% endif %}
             {% endfor %}

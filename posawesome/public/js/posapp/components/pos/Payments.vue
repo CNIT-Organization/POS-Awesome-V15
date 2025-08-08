@@ -184,49 +184,7 @@
 					</v-col>
 				</v-row>
 
-				<!-- Customer Credit Redemption -->
-				<v-row
-					class="payments pa-1"
-					v-if="
-						invoice_doc &&
-						available_customer_credit > 0 &&
-						!invoice_doc.is_return &&
-						redeem_customer_credit
-					"
-				>
-					<v-col cols="7">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('Redeemed Customer Credit')"
-							:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-							class="dark-field sleek-field"
-							hide-details
-							:model-value="formatCurrency(redeemed_customer_credit)"
-							type="text"
-							@change="
-								setFormatedCurrency(this, 'redeemed_customer_credit', null, false, $event)
-							"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							readonly
-						></v-text-field>
-					</v-col>
-					<v-col cols="5">
-						<v-text-field
-							density="compact"
-							variant="solo"
-							color="primary"
-							:label="frappe._('You can redeem credit up to')"
-							:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-							class="dark-field sleek-field"
-							hide-details
-							:model-value="formatCurrency(available_customer_credit)"
-							:prefix="currencySymbol(invoice_doc.currency)"
-							readonly
-						></v-text-field>
-					</v-col>
-				</v-row>
+
 
 				<v-divider></v-divider>
 
@@ -481,8 +439,28 @@
 							class="my-0 pa-1"
 						></v-switch>
 					</v-col>
-					<v-col cols="6" v-if="pos_profile.posa_allow_credit_sale && !invoice_doc.is_return">
-						<v-switch v-model="is_credit_sale" :label="frappe._('Credit Sale?')"></v-switch>
+					<v-col cols="6" v-if="!invoice_doc.is_return">
+						<v-switch 
+							v-model="is_credit_sale" 
+							:label="frappe._('Credit Sale?')"
+							color="primary"
+							class="my-0 pa-1"
+							@update:model-value="handleCreditSaleToggle"
+						>
+							<template v-slot:label>
+								<div class="d-flex align-center">
+									<v-icon class="mr-2" color="primary">mdi-credit-card-outline</v-icon>
+									<span class="text-body-2 font-weight-medium">{{ frappe._('Credit Sale?') }}</span>
+								</div>
+							</template>
+						</v-switch>
+						<div v-if="is_credit_sale" class="mt-2 pa-2 bg-blue-lighten-5 rounded-lg">
+							<v-icon class="mr-2" color="info" size="small">mdi-information-outline</v-icon>
+							<span class="text-caption text-blue-darken-2">
+								{{ frappe._("Credit sale enabled. No payment required - customer will pay later.") }}
+							</span>
+						</div>
+
 					</v-col>
 					<v-col cols="6" v-if="invoice_doc.is_return && pos_profile.use_cashback">
 						<v-switch
@@ -538,61 +516,10 @@
 							</v-chip>
 						</div>
 					</v-col>
-					<v-col cols="6" v-if="!invoice_doc.is_return && pos_profile.use_customer_credit">
-						<v-switch
-							v-model="redeem_customer_credit"
-							flat
-							:label="frappe._('Use Customer Credit')"
-							class="my-0 pa-1"
-							@update:model-value="get_available_credit(redeem_customer_credit)"
-						></v-switch>
-					</v-col>
+
 				</v-row>
 
-				<!-- Customer Credit Details -->
-				<div
-					v-if="
-						invoice_doc &&
-						available_customer_credit > 0 &&
-						!invoice_doc.is_return &&
-						redeem_customer_credit
-					"
-				>
-					<v-row v-for="(row, idx) in customer_credit_dict" :key="idx">
-						<v-col cols="4">
-							<div class="pa-2 py-3">{{ row.credit_origin }}</div>
-						</v-col>
-						<v-col cols="4">
-							<v-text-field
-								density="compact"
-								variant="solo"
-								color="primary"
-								:label="frappe._('Available Credit')"
-								:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-								class="dark-field sleek-field"
-								hide-details
-								:model-value="formatCurrency(row.total_credit)"
-								readonly
-								:prefix="currencySymbol(invoice_doc.currency)"
-							></v-text-field>
-						</v-col>
-						<v-col cols="4">
-							<v-text-field
-								density="compact"
-								variant="solo"
-								color="primary"
-								:label="frappe._('Redeem Credit')"
-								:bg-color="isDarkTheme ? '#1E1E1E' : 'white'"
-								class="dark-field sleek-field"
-								hide-details
-								type="text"
-								:model-value="formatCurrency(row.credit_to_redeem)"
-								@change="setFormatedCurrency(row, 'credit_to_redeem', null, false, $event)"
-								:prefix="currencySymbol(invoice_doc.currency)"
-							></v-text-field>
-						</v-col>
-					</v-row>
-				</div>
+
 
 				<v-divider></v-divider>
 
@@ -765,15 +692,14 @@ export default {
 			invoiceType: "Invoice", // Type of invoice
 			is_return: false, // Is this a return invoice?
 			loyalty_amount: 0, // Loyalty points to redeem
-			redeemed_customer_credit: 0, // Customer credit to redeem
+
 			credit_change: 0, // Change to be given as credit
 			paid_change: 0, // Change to be given as paid
 			is_credit_sale: false, // Is this a credit sale?
 			is_write_off_change: false, // Write-off for change enabled
 			is_cashback: true, // Cashback enabled
 			is_credit_return: false, // Is this a credit return?
-			redeem_customer_credit: false, // Redeem customer credit?
-			customer_credit_dict: [], // List of available customer credits
+
 			paid_change_rules: [], // Validation rules for paid change
 			phone_dialog: false, // Show phone payment dialog
 			custom_days_dialog: false, // Show custom days dialog
@@ -804,6 +730,12 @@ export default {
 		},
 		// Calculate total payments (all methods, loyalty, credit)
 		total_payments() {
+			// If credit sale is enabled, return 0 (no payments required)
+			if (this.is_credit_sale || (this.invoice_doc && this.invoice_doc.is_credit_sale)) {
+				console.log("Credit sale mode detected in total_payments - returning 0");
+				return 0;
+			}
+			
 			let total = 0;
 			if (this.invoice_doc && this.invoice_doc.payments) {
 				this.invoice_doc.payments.forEach((payment) => {
@@ -826,20 +758,9 @@ export default {
 				}
 			}
 
-			// Add redeemed customer credit (convert if needed)
-			if (this.redeemed_customer_credit) {
-				// Customer credit is stored in base currency (PKR)
-				if (this.invoice_doc.currency !== this.pos_profile.currency) {
-					// Convert to selected currency (e.g. USD) by dividing
-					total += this.flt(
-						this.redeemed_customer_credit / (this.invoice_doc.conversion_rate || 1),
-						this.currency_precision,
-					);
-				} else {
-					total += parseFloat(this.redeemed_customer_credit) || 0;
-				}
-			}
 
+
+			console.log("Total payments calculated:", this.flt(total, this.currency_precision));
 			return this.flt(total, this.currency_precision);
 		},
 
@@ -927,10 +848,7 @@ export default {
 			}
 			return amount;
 		},
-		// Calculate total available customer credit
-		available_customer_credit() {
-			return this.customer_credit_dict.reduce((total, row) => total + this.flt(row.total_credit), 0);
-		},
+
 		// Validate if payment can be submitted
 		vaildatPayment() {
 			if (this.pos_profile.posa_allow_sales_order) {
@@ -989,24 +907,7 @@ export default {
 					this.flt(this.loyalty_amount) / this.customer_info.conversion_factor;
 			}
 		},
-		// Watch redeemed_customer_credit to validate
-		redeemed_customer_credit(newVal) {
-			if (newVal > this.available_customer_credit) {
-				this.redeemed_customer_credit = this.available_customer_credit;
-				this.eventBus.emit("show_message", {
-					title: `You can redeem customer credit up to ${this.available_customer_credit}`,
-					color: "error",
-				});
-			}
-		},
-		// Recalculate total redeemed credit whenever credit entries change
-		customer_credit_dict: {
-			handler(newVal) {
-				const total = newVal.reduce((sum, row) => sum + this.flt(row.credit_to_redeem || 0), 0);
-				this.redeemed_customer_credit = this.flt(total, this.currency_precision);
-			},
-			deep: true,
-		},
+
 		// Watch sales_person to update sales_team
 		sales_person(newVal) {
 			if (newVal) {
@@ -1024,13 +925,18 @@ export default {
 		},
 		// Watch is_credit_sale to reset cash payments
 		is_credit_sale(newVal) {
+			console.log("is_credit_sale watcher triggered:", newVal);
 			if (newVal) {
-				// If credit sale is enabled, set cash payment to 0
+				// If credit sale is enabled, set all payment amounts to 0
 				this.invoice_doc.payments.forEach((payment) => {
-					if (payment.mode_of_payment.toLowerCase() === "cash") {
-						payment.amount = 0;
+					payment.amount = 0;
+					if (payment.base_amount !== undefined) {
+						payment.base_amount = 0;
 					}
 				});
+				// Set credit sale flag on invoice
+				this.invoice_doc.is_credit_sale = true;
+				console.log("Credit sale enabled - all payments cleared");
 			} else {
 				// If credit sale is disabled, set cash payment to invoice total
 				this.invoice_doc.payments.forEach((payment) => {
@@ -1038,7 +944,12 @@ export default {
 						payment.amount = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
 					}
 				});
+				// Clear credit sale flag on invoice
+				this.invoice_doc.is_credit_sale = false;
+				console.log("Credit sale disabled - cash payment restored");
 			}
+			// Force update computed properties
+			this.$forceUpdate();
 		},
 		// Watch is_credit_return to toggle cashback payments
 		is_credit_return(newVal) {
@@ -1107,17 +1018,30 @@ export default {
 		},
 		// Submit payment after validation
 		submit(event, payment_received = false, print = false) {
+			try {
 			// For return invoices, ensure payment amounts are negative
 			if (this.invoice_doc.is_return) {
 				this.ensureReturnPaymentsAreNegative();
 			}
+			
+			// Check if this is a credit sale (either from local flag or from closing dialog)
+			const is_credit_sale_mode = this.is_credit_sale || this.invoice_doc.is_credit_sale;
+			
+			// Debug logging
+			console.log("Submit validation - Credit sale mode:", is_credit_sale_mode);
+			console.log("Submit validation - Local is_credit_sale:", this.is_credit_sale);
+			console.log("Submit validation - Invoice is_credit_sale:", this.invoice_doc.is_credit_sale);
+			console.log("Submit validation - Total payments:", this.total_payments);
+			console.log("Submit validation - Invoice total:", this.invoice_doc.rounded_total || this.invoice_doc.grand_total);
+			
 			// Validate total payments only if not credit sale and invoice total is not zero
 			if (
-				!this.is_credit_sale &&
+				!is_credit_sale_mode &&
 				!this.invoice_doc.is_return &&
 				this.total_payments <= 0 &&
 				(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
 			) {
+				console.log("Payment validation failed - showing error");
 				this.eventBus.emit("show_message", {
 					title: `Please enter payment amount`,
 					color: "error",
@@ -1125,8 +1049,22 @@ export default {
 				frappe.utils.play_sound("error");
 				return;
 			}
+			
+			// For credit sales, ensure all payment amounts are 0
+			if (is_credit_sale_mode) {
+				console.log("Credit sale mode detected - clearing all payment amounts");
+				this.invoice_doc.payments.forEach((payment) => {
+					payment.amount = 0;
+					if (payment.base_amount !== undefined) {
+						payment.base_amount = 0;
+					}
+				});
+				// Set credit sale flag on invoice
+				this.invoice_doc.is_credit_sale = true;
+			}
+			
 			// Validate cash payments when credit sale is off
-			if (!this.is_credit_sale && !this.invoice_doc.is_return) {
+			if (!is_credit_sale_mode && !this.invoice_doc.is_return) {
 				let has_cash_payment = false;
 				let cash_amount = 0;
 				this.invoice_doc.payments.forEach((payment) => {
@@ -1152,7 +1090,7 @@ export default {
 			}
 			// Validate partial payments only if not credit sale and invoice total is not zero
 			if (
-				!this.is_credit_sale &&
+				!is_credit_sale_mode &&
 				!this.pos_profile.posa_allow_partial_payment &&
 				this.total_payments < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
 				(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
@@ -1200,36 +1138,59 @@ export default {
 				frappe.utils.play_sound("error");
 				return;
 			}
-			// Validate customer credit redemption
-			let credit_calc_check = this.customer_credit_dict.filter((row) => {
-				return this.flt(row.credit_to_redeem) > this.flt(row.total_credit);
-			});
-			if (credit_calc_check.length > 0) {
+
+
+							// Proceed to submit the invoice
+				this.loading = true;
+				
+				// Safety timeout to reset loading if something goes wrong
+				setTimeout(() => {
+					if (this.loading) {
+						console.warn("Safety timeout - resetting loading state");
+						this.loading = false;
+						this.eventBus.emit("show_message", {
+							title: __("Submission timeout. Please try again."),
+							color: "warning",
+						});
+					}
+				}, 60000); // 60 seconds safety timeout
+				
+				this.submit_invoice(print);
+			} catch (error) {
+				console.error("Error in submit method:", error);
 				this.eventBus.emit("show_message", {
-					title: `Redeemed credit cannot be greater than its total.`,
+					title: `Error during submission: ${error.message}`,
 					color: "error",
 				});
+				this.loading = false;
 				frappe.utils.play_sound("error");
-				return;
+			} finally {
+				// Ensure loading is always reset
+				if (this.loading) {
+					console.log("Ensuring loading state is reset in finally block");
+					this.loading = false;
+				}
 			}
-			if (
-				!this.invoice_doc.is_return &&
-				this.redeemed_customer_credit >
-					(this.invoice_doc.rounded_total || this.invoice_doc.grand_total)
-			) {
-				this.eventBus.emit("show_message", {
-					title: `Cannot redeem customer credit more than invoice total`,
-					color: "error",
-				});
-				frappe.utils.play_sound("error");
-				return;
-			}
-			// Proceed to submit the invoice
-			this.loading = true;
-			this.submit_invoice(print);
 		},
 		// Submit invoice to backend after all validations
 		submit_invoice(print) {
+			const vm = this;
+			
+			// Ensure loading state is reset on any error
+			const resetLoading = () => {
+				console.log("Resetting loading state");
+				vm.loading = false;
+			};
+			
+			// Set a timeout to reset loading state if request takes too long
+			const loadingTimeout = setTimeout(() => {
+				console.warn("Request timeout - resetting loading state");
+				resetLoading();
+				vm.eventBus.emit("show_message", {
+					title: __("Request timeout. Please try again."),
+					color: "warning",
+				});
+			}, 30000); // 30 seconds timeout
 			// For return invoices, ensure payments are negative one last time
 			if (this.invoice_doc.is_return) {
 				this.ensureReturnPaymentsAreNegative();
@@ -1248,21 +1209,13 @@ export default {
 				this.invoice_doc.is_pos = 1;
 			}
 			
-			if (this.customer_credit_dict.length) {
-				this.customer_credit_dict.forEach((row) => {
-					row.credit_to_redeem = this.flt(row.credit_to_redeem);
-				});
-			}
 			let data = {
 				total_change: !this.invoice_doc.is_return ? -this.diff_payment : 0,
 				paid_change: !this.invoice_doc.is_return ? this.paid_change : 0,
 				credit_change: -this.credit_change,
-				redeemed_customer_credit: this.redeemed_customer_credit,
-				customer_credit_dict: this.customer_credit_dict,
 				is_cashback: this.is_cashback,
 				is_credit_sale: this.is_credit_sale, // Add credit sale flag to data
 			};
-			const vm = this;
 
 			if (isOffline()) {
 				try {
@@ -1300,6 +1253,12 @@ export default {
 					order: this.invoice_doc,
 				},
 				callback: function (r) {
+					// Clear the timeout since we got a response
+					clearTimeout(loadingTimeout);
+					
+					// Always reset loading state first
+					vm.loading = false;
+					
 					if (r.exc) {
 						console.error("Error submitting invoice:", r.exc);
 						// Show detailed error message to help debugging
@@ -1329,7 +1288,6 @@ export default {
 								color: "error",
 							});
 						}
-						vm.loading = false;
 						return;
 					}
 					if (!r.message) {
@@ -1337,14 +1295,11 @@ export default {
 							title: __("Error submitting invoice: No response from server"),
 							color: "error",
 						});
-						vm.loading = false;
 						return;
 					}
 					if (print) {
 						vm.load_print_page();
 					}
-					vm.customer_credit_dict = [];
-					vm.redeem_customer_credit = false;
 					vm.is_cashback = true;
 					vm.is_credit_return = false;
 					vm.sales_person = "";
@@ -1364,8 +1319,22 @@ export default {
 					vm.eventBus.emit("clear_invoice");
 					vm.eventBus.emit("reset_posting_date");
 					vm.back_to_invoice();
-					vm.loading = false;
+					resetLoading();
 				},
+			});
+		},
+		// Reset loading state - can be called from anywhere
+		resetLoadingState() {
+			console.log("Resetting loading state via resetLoadingState method");
+			this.loading = false;
+		},
+		// Force reset loading state - for debugging
+		forceResetLoading() {
+			console.log("Force resetting loading state");
+			this.loading = false;
+			this.eventBus.emit("show_message", {
+				title: __("Loading state manually reset"),
+				color: "info",
 			});
 		},
 		// Set full amount for a payment method (or negative for returns)
@@ -1512,42 +1481,7 @@ export default {
 				this.submit_invoice(true); // true = print
 			}, 200);
 		},
-		// Get available customer credit and auto-allocate
-		get_available_credit(use_credit) {
-			this.clear_all_amounts();
-			if (use_credit) {
-				frappe
-					.call("posawesome.posawesome.api.payments.get_available_credit", {
-						customer: this.invoice_doc.customer,
-						company: this.pos_profile.company,
-					})
-					.then((r) => {
-						const data = r.message;
-						if (data.length) {
-							const amount = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
-							let remainAmount = amount;
-							data.forEach((row) => {
-								if (remainAmount > 0) {
-									if (remainAmount >= row.total_credit) {
-										row.credit_to_redeem = row.total_credit;
-										remainAmount -= row.total_credit;
-									} else {
-										row.credit_to_redeem = remainAmount;
-										remainAmount = 0;
-									}
-								} else {
-									row.credit_to_redeem = 0;
-								}
-							});
-							this.customer_credit_dict = data;
-						} else {
-							this.customer_credit_dict = [];
-						}
-					});
-			} else {
-				this.customer_credit_dict = [];
-			}
-		},
+
 		// Get customer addresses for shipping
 		get_addresses() {
 			const vm = this;
@@ -1638,8 +1572,7 @@ export default {
 			formData["total_change"] = !this.invoice_doc.is_return ? -this.diff_payment : 0;
 			formData["paid_change"] = !this.invoice_doc.is_return ? this.paid_change : 0;
 			formData["credit_change"] = -this.credit_change;
-			formData["redeemed_customer_credit"] = this.redeemed_customer_credit;
-			formData["customer_credit_dict"] = this.customer_credit_dict;
+
 			formData["is_cashback"] = this.is_cashback;
 			frappe
 				.call({
@@ -1896,6 +1829,28 @@ export default {
 			}
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
+		handleCreditSaleToggle() {
+			// Add any additional logic you want to execute when credit sale is toggled
+			console.log("Credit sale toggled:", this.is_credit_sale);
+			
+			// Force update the invoice credit sale flag
+			if (this.invoice_doc) {
+				this.invoice_doc.is_credit_sale = this.is_credit_sale;
+				console.log("Invoice credit sale flag set to:", this.invoice_doc.is_credit_sale);
+			}
+			
+			// If credit sale is enabled, clear all payment amounts immediately
+			if (this.is_credit_sale && this.invoice_doc && this.invoice_doc.payments) {
+				this.invoice_doc.payments.forEach((payment) => {
+					payment.amount = 0;
+					if (payment.base_amount !== undefined) {
+						payment.base_amount = 0;
+					}
+				});
+				console.log("All payment amounts cleared for credit sale");
+			}
+		},
+
 	},
 	// Lifecycle hook: created
 	created() {
@@ -1905,6 +1860,23 @@ export default {
 		this.eventBus.on("network-online", this.syncPendingInvoices);
 		// Also sync when the server connection is re-established
 		this.eventBus.on("server-online", this.syncPendingInvoices);
+		this.eventBus.on("register_pos_profile", (data) => {
+			this.pos_profile = data.pos_profile;
+		});
+		this.eventBus.on("register_pos_settings", (data) => {
+			this.pos_settings = data;
+		});
+		this.eventBus.on("register_invoice", (data) => {
+			this.invoice_doc = data;
+			this.invoiceType = data.doctype === "Sales Order" ? "Order" : "Invoice";
+			this.is_return = data.is_return;
+			this.get_addresses();
+			this.get_sales_persons();
+			this.fetch_customer_balance();
+		});
+		this.eventBus.on("register_customer_info", (data) => {
+			this.customer_info = data;
+		});
 	},
 	// Lifecycle hook: mounted
 	mounted() {
@@ -1940,7 +1912,6 @@ export default {
 					this.is_credit_return = false;
 				}
 				this.loyalty_amount = 0;
-				this.redeemed_customer_credit = 0;
 				// Only get addresses if customer exists
 				if (invoice_doc.customer) {
 					this.get_addresses();
@@ -1976,8 +1947,6 @@ export default {
 			});
 			this.eventBus.on("update_customer", (customer) => {
 				if (this.customer !== customer) {
-					this.customer_credit_dict = [];
-					this.redeem_customer_credit = false;
 					this.is_cashback = true;
 					this.is_credit_return = false;
 				}
@@ -2005,24 +1974,41 @@ export default {
 			this.eventBus.on("set_cash_payment_and_print", () => {
 				this.setCashPaymentAndPrint();
 			});
+			
+			// Global error handler to ensure loading state is reset
+			window.addEventListener('error', (event) => {
+				console.error('Global error caught:', event.error);
+				if (this.loading) {
+					console.log('Resetting loading state due to global error');
+					this.loading = false;
+				}
+			});
+			
+			// Handle unhandled promise rejections
+			window.addEventListener('unhandledrejection', (event) => {
+				console.error('Unhandled promise rejection:', event.reason);
+				if (this.loading) {
+					console.log('Resetting loading state due to unhandled promise rejection');
+					this.loading = false;
+				}
+			});
+			
+			// Expose reset method globally for debugging
+			window.resetPOSLoading = () => {
+				if (this && this.forceResetLoading) {
+					this.forceResetLoading();
+				} else {
+					console.log("POS component not available");
+				}
+			};
 		});
 	},
 	// Lifecycle hook: beforeUnmount
 	beforeUnmount() {
-		// Remove all event listeners
-		this.eventBus.off("send_invoice_doc_payment");
 		this.eventBus.off("register_pos_profile");
-		this.eventBus.off("add_the_new_address");
-		this.eventBus.off("update_invoice_type");
-		this.eventBus.off("update_customer");
-		this.eventBus.off("set_pos_settings");
-		this.eventBus.off("set_customer_info_to_edit");
-		this.eventBus.off("set_mpesa_payment");
-		this.eventBus.off("clear_invoice");
-		this.eventBus.off("submit_with_print");
-		this.eventBus.off("set_cash_payment_and_print");
-		this.eventBus.off("network-online", this.syncPendingInvoices);
-		this.eventBus.off("server-online", this.syncPendingInvoices);
+		this.eventBus.off("register_pos_settings");
+		this.eventBus.off("register_invoice");
+		this.eventBus.off("register_customer_info");
 	},
 	// Lifecycle hook: unmounted
 	unmounted() {

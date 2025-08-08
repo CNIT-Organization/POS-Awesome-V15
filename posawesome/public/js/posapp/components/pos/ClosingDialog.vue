@@ -43,7 +43,7 @@
 								>
 									<template v-slot:item.closing_amount="props">
 										<v-text-field
-											v-model="props.item.closing_amount"
+											v-model.number="props.item.closing_amount"
 											:rules="[max25chars]"
 											:label="frappe._('Edit')"
 											single-line
@@ -56,24 +56,21 @@
 											class="dark-field"
 											hide-details
 											:prefix="currencySymbol(pos_profile.currency)"
+											@input="updateDifference(props.item)"
 										></v-text-field>
 									</template>
 									<template v-slot:item.difference="{ item }">
 										{{ currencySymbol(pos_profile.currency) }}
-										{{
-											item.difference = formatCurrency(
-												item.expected_amount - item.closing_amount,
-											)
-										}}</template
-									>
+										{{ formatCurrency(item.difference) }}
+									</template>
 									<template v-slot:item.opening_amount="{ item }">
 										{{ currencySymbol(pos_profile.currency) }}
-										{{ formatCurrency(item.opening_amount) }}</template
-									>
+										{{ formatCurrency(item.opening_amount) }}
+									</template>
 									<template v-slot:item.expected_amount="{ item }">
 										{{ currencySymbol(pos_profile.currency) }}
-										{{ formatCurrency(item.expected_amount) }}</template
-									>
+										{{ formatCurrency(item.expected_amount) }}
+									</template>
 								</v-data-table>
 							</v-col>
 						</v-row>
@@ -161,6 +158,10 @@ export default {
 			this.eventBus.emit("submit_closing_pos", this.dialog_data);
 			this.closingDialog = false;
 		},
+		updateDifference(item) {
+			// Calculate difference: closing_amount - expected_amount
+			item.difference = (item.closing_amount || 0) - (item.expected_amount || 0);
+		},
 		print_preview() {
 			// Test the cashier shift report format
 			frappe.call({
@@ -190,22 +191,37 @@ export default {
 		this.eventBus.on("open_ClosingDialog", (data) => {
 			this.closingDialog = true;
 			this.dialog_data = data;
+			// Initialize differences for all payment methods
+			if (this.dialog_data.payment_reconciliation) {
+				this.dialog_data.payment_reconciliation.forEach(item => {
+					this.updateDifference(item);
+				});
+			}
 		});
 		this.eventBus.on("register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
+			// Only add expected amount and difference columns if not hidden
 			if (!this.pos_profile.hide_expected_amount) {
-				this.headers.push({
-					title: __("Expected Amount"),
-					value: "expected_amount",
-					align: "end",
-					sortable: false,
-				});
-				this.headers.push({
-					title: __("Difference"),
-					value: "difference",
-					align: "end",
-					sortable: false,
-				});
+				// Check if headers already exist to avoid duplicates
+				const hasExpectedAmount = this.headers.some(h => h.value === 'expected_amount');
+				const hasDifference = this.headers.some(h => h.value === 'difference');
+				
+				if (!hasExpectedAmount) {
+					this.headers.push({
+						title: __("Expected Amount"),
+						value: "expected_amount",
+						align: "end",
+						sortable: false,
+					});
+				}
+				if (!hasDifference) {
+					this.headers.push({
+						title: __("Difference"),
+						value: "difference",
+						align: "end",
+						sortable: false,
+					});
+				}
 			}
 		});
 	},

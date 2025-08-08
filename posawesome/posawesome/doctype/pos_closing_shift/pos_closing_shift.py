@@ -155,6 +155,8 @@ def make_closing_shift_from_opening(opening_shift):
 	closing_shift.grand_total = 0
 	closing_shift.net_total = 0
 	closing_shift.total_quantity = 0
+	closing_shift.credit_sales_total = 0
+	closing_shift.unpaid_invoices_count = 0
 
 	invoices = get_pos_invoices(opening_shift.get("name"))
 
@@ -187,6 +189,11 @@ def make_closing_shift_from_opening(opening_shift):
 		closing_shift.grand_total += flt(d.grand_total)
 		closing_shift.net_total += flt(d.net_total)
 		closing_shift.total_quantity += flt(d.total_qty)
+
+		# Check if this is a credit sale (unpaid invoice)
+		if d.outstanding_amount > 0:
+			closing_shift.credit_sales_total += flt(d.outstanding_amount)
+			closing_shift.unpaid_invoices_count += 1
 
 		for t in d.taxes:
 			existing_tax = [tx for tx in taxes if tx.account_head == t.account_head and tx.rate == t.rate]
@@ -268,6 +275,7 @@ def make_closing_shift_from_opening(opening_shift):
 @frappe.whitelist()
 def submit_closing_shift(closing_shift):
 	closing_shift = json.loads(closing_shift)
+	
 	closing_shift_doc = frappe.get_doc(closing_shift)
 	closing_shift_doc.flags.ignore_permissions = True
 	closing_shift_doc.save()
@@ -479,18 +487,21 @@ def test_cashier_shift_report():
 				"grand_total": 700.00,
 				"net_total": 700.00,
 				"total_quantity": 25,
-				"opening_amount": 100.00,
+				"credit_sales_total": 150.00,
+				"unpaid_invoices_count": 2,
 				"period_start_date": "2025-08-07 08:00:00",
 				"period_end_date": "2025-08-07 20:00:00",
 				"payment_reconciliation": [
 					{
 						"mode_of_payment": "Cash",
+						"opening_amount": 25.00,
 						"closing_amount": 678.00,
 						"difference": -4.27,
 						"expected_amount": 673.73
 					},
 					{
 						"mode_of_payment": "Knet",
+						"opening_amount": 0.00,
 						"closing_amount": 0.00,
 						"difference": 0.00,
 						"expected_amount": 0.00
