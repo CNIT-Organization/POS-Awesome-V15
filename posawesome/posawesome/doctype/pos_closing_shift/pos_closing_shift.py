@@ -45,6 +45,25 @@ class POSClosingShift(Document):
 		precision = frappe.get_cached_value("System Settings", None, "currency_precision") or 3
 		for d in self.payment_reconciliation:
 			d.difference = +flt(d.closing_amount, precision) - flt(d.expected_amount, precision)
+		
+		# Update credit sales information
+		self.update_credit_sales_info()
+
+	def update_credit_sales_info(self):
+		"""
+		Update credit sales total and unpaid invoices count from unpaid invoices
+		"""
+		if self.pos_opening_shift:
+			unpaid_invoices = get_unpaid_invoices(self.pos_opening_shift)
+			credit_sales_total = 0
+			unpaid_count = 0
+			
+			for invoice in unpaid_invoices:
+				credit_sales_total += flt(invoice.outstanding_amount)
+				unpaid_count += 1
+			
+			self.credit_sales_total = credit_sales_total
+			self.unpaid_invoices_count = unpaid_count
 
 	def on_submit(self):
 		opening_entry = frappe.get_doc("POS Opening Shift", self.pos_opening_shift)
@@ -83,9 +102,35 @@ class POSClosingShift(Document):
 	def get_payment_reconciliation_details(self):
 		currency = frappe.get_cached_value("Company", self.company, "default_currency")
 		return frappe.render_template(
-			"posawesome/posawesome/doctype/pos_closing_shift/closing_shift_details.html",
+			"posawesome/posawesome/posawesome/doctype/pos_closing_shift/closing_shift_details.html",
 			{"data": self, "currency": currency},
 		)
+
+	@frappe.whitelist()
+	def refresh_credit_sales(self):
+		"""
+		Refresh credit sales information from unpaid invoices
+		"""
+		self.update_credit_sales_info()
+		self.save()
+		return {
+			"credit_sales_total": self.credit_sales_total,
+			"unpaid_invoices_count": self.unpaid_invoices_count
+		}
+
+	@frappe.whitelist()
+	def get_credit_sales_info(self):
+		"""
+		Get credit sales information for this closing shift
+		"""
+		if not self.credit_sales_total or not self.unpaid_invoices_count:
+			self.update_credit_sales_info()
+		
+		return {
+			"credit_sales_total": self.credit_sales_total or 0,
+			"unpaid_invoices_count": self.unpaid_invoices_count or 0,
+			"unpaid_invoices": get_unpaid_invoices(self.pos_opening_shift) if self.pos_opening_shift else []
+		}
 
 
 @frappe.whitelist()
@@ -103,15 +148,17 @@ def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
 @frappe.whitelist()
 def get_pos_invoices(pos_opening_shift):
 	submit_printed_invoices(pos_opening_shift)
+	# Fetch both submitted and unpaid invoices for this POS shift
 	data = frappe.db.sql(
 		"""
-	select
-		name
-	from
-		`tabSales Invoice`
-	where
-		docstatus = 1 and posa_pos_opening_shift = %s
-	""",
+		select
+			name
+		from
+			`tabSales Invoice`
+		where
+			posa_pos_opening_shift = %s
+			and (docstatus = 1 or outstanding_amount > 0)
+		""",
 		(pos_opening_shift),
 		as_dict=1,
 	)
@@ -139,6 +186,204 @@ def get_payments_entries(pos_opening_shift):
 			"party",
 		],
 	)
+
+
+@frappe.whitelist()
+def get_unpaid_invoices(pos_opening_shift):
+	"""
+	Get unpaid invoices (credit sales) for a specific POS shift
+	"""
+	if not pos_opening_shift:
+		return []
+	
+	# Get all invoices for this POS shift first
+	all_invoices = frappe.db.sql(
+		"""
+		select
+			name,
+			grand_total,
+			outstanding_amount,
+			customer,
+			posting_date,
+			docstatus
+		from
+			`tabSales Invoice`
+		where
+			posa_pos_opening_shift = %s
+		""",
+		(pos_opening_shift),
+		as_dict=1,
+	)
+	
+	# Filter for unpaid invoices
+	unpaid_invoices = []
+	for invoice in all_invoices:
+		if flt(invoice.outstanding_amount) > 0:
+			unpaid_invoices.append(invoice)
+	
+	return unpaid_invoices
+
+
+@frappe.whitelist()
+def get_closing_shift_credit_sales(closing_shift_name):
+	"""
+	Get credit sales information for a specific POS Closing Shift
+	"""
+	if not frappe.db.exists("POS Closing Shift", closing_shift_name):
+		return {"error": "POS Closing Shift not found"}
+	
+	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+	
+	# Get unpaid invoices for this shift
+	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift) if closing_shift_doc.pos_opening_shift else []
+	
+	# Calculate credit sales total
+	credit_sales_total = sum(flt(invoice.outstanding_amount) for invoice in unpaid_invoices)
+	unpaid_invoices_count = len(unpaid_invoices)
+	
+	return {
+		"closing_shift_name": closing_shift_name,
+		"credit_sales_total": credit_sales_total,
+		"unpaid_invoices_count": unpaid_invoices_count,
+		"unpaid_invoices": unpaid_invoices,
+		"pos_opening_shift": closing_shift_doc.pos_opening_shift,
+		"user": closing_shift_doc.user,
+		"company": closing_shift_doc.company
+	}
+
+
+@frappe.whitelist()
+def test_credit_sales_simple(closing_shift_name):
+	"""
+	Simple test function to check credit sales data
+	"""
+	if not frappe.db.exists("POS Closing Shift", closing_shift_name):
+		return {"error": "POS Closing Shift not found"}
+	
+	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+	
+	# Get all invoices for this shift
+	all_invoices = frappe.db.sql(
+		"""
+		select name, grand_total, outstanding_amount, customer, docstatus
+		from `tabSales Invoice`
+		where posa_pos_opening_shift = %s
+		""",
+		(closing_shift_doc.pos_opening_shift),
+		as_dict=1,
+	)
+	
+	# Get unpaid invoices
+	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
+	
+	return {
+		"closing_shift": closing_shift_name,
+		"pos_opening_shift": closing_shift_doc.pos_opening_shift,
+		"all_invoices": all_invoices,
+		"unpaid_invoices": unpaid_invoices,
+		"total_outstanding": sum(flt(inv.outstanding_amount) for inv in unpaid_invoices)
+	}
+
+
+@frappe.whitelist()
+def debug_credit_sales_data(closing_shift_name):
+	"""
+	Debug function to check credit sales data for a specific closing shift
+	"""
+	if not frappe.db.exists("POS Closing Shift", closing_shift_name):
+		return {"error": "POS Closing Shift not found"}
+	
+	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
+	
+	# Get all invoices for this shift
+	all_invoices = frappe.db.sql(
+		"""
+		select
+			name,
+			grand_total,
+			outstanding_amount,
+			customer,
+			posting_date,
+			docstatus
+		from
+			`tabSales Invoice`
+		where
+			posa_pos_opening_shift = %s
+		""",
+		(closing_shift_doc.pos_opening_shift),
+		as_dict=1,
+	)
+	
+	# Get unpaid invoices
+	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
+	
+	return {
+		"closing_shift_name": closing_shift_name,
+		"pos_opening_shift": closing_shift_doc.pos_opening_shift,
+		"all_invoices_count": len(all_invoices),
+		"all_invoices": all_invoices,
+		"unpaid_invoices_count": len(unpaid_invoices),
+		"unpaid_invoices": unpaid_invoices,
+		"total_outstanding": sum(flt(inv.outstanding_amount) for inv in unpaid_invoices)
+	}
+
+
+@frappe.whitelist()
+def get_credit_sales_summary(filters=None):
+	"""
+	Get credit sales summary for multiple closing shifts based on filters
+	"""
+	if not filters:
+		filters = {}
+	
+	# Build the base query
+	base_filters = {"docstatus": 1}  # Only submitted closing shifts
+	
+	# Add date filters if provided
+	if filters.get("from_date"):
+		base_filters["period_start_date"] = [">=", filters.get("from_date")]
+	if filters.get("to_date"):
+		base_filters["period_end_date"] = ["<=", filters.get("to_date")]
+	if filters.get("user"):
+		base_filters["user"] = filters.get("user")
+	if filters.get("company"):
+		base_filters["company"] = filters.get("company")
+	
+	# Get closing shifts
+	closing_shifts = frappe.get_all(
+		"POS Closing Shift",
+		filters=base_filters,
+		fields=["name", "user", "company", "period_start_date", "period_end_date", "pos_opening_shift"]
+	)
+	
+	summary_data = []
+	total_credit_sales = 0
+	total_unpaid_count = 0
+	
+	for shift in closing_shifts:
+		# Get credit sales for this shift
+		credit_sales_info = get_closing_shift_credit_sales(shift.name)
+		
+		if "error" not in credit_sales_info:
+			summary_data.append({
+				"closing_shift_name": shift.name,
+				"user": shift.user,
+				"company": shift.company,
+				"period_start_date": shift.period_start_date,
+				"period_end_date": shift.period_end_date,
+				"credit_sales_total": credit_sales_info["credit_sales_total"],
+				"unpaid_invoices_count": credit_sales_info["unpaid_invoices_count"]
+			})
+			
+			total_credit_sales += credit_sales_info["credit_sales_total"]
+			total_unpaid_count += credit_sales_info["unpaid_invoices_count"]
+	
+	return {
+		"shifts": summary_data,
+		"total_credit_sales": total_credit_sales,
+		"total_unpaid_count": total_unpaid_count,
+		"total_shifts": len(summary_data)
+	}
 
 
 @frappe.whitelist()
@@ -314,6 +559,9 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get items sold during the shift
 	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 	
+	# Get unpaid invoices (credit sales) for this shift
+	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
+	
 	# Prepare data for template
 	report_data = {
 		"closing_shift": closing_shift_doc,
@@ -321,6 +569,7 @@ def print_cashier_shift_report(closing_shift_name):
 		"user": user,
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
+		"unpaid_invoices": unpaid_invoices,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime()
@@ -376,6 +625,9 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get items sold during the shift
 	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 	
+	# Get unpaid invoices (credit sales) for this shift
+	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
+	
 	# Prepare data for template
 	report_data = {
 		"closing_shift": closing_shift_doc,
@@ -383,6 +635,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"user": user,
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
+		"unpaid_invoices": unpaid_invoices,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime()
@@ -469,6 +722,9 @@ def test_cashier_shift_report():
 		# Get items sold during the shift
 		items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 		
+		# Get unpaid invoices (credit sales) for this shift
+		unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
+		
 		# Prepare data for template
 		report_data = {
 			"closing_shift": closing_shift_doc,
@@ -476,6 +732,7 @@ def test_cashier_shift_report():
 			"user": user,
 			"pos_profile": pos_profile,
 			"items_sold": items_sold,
+			"unpaid_invoices": unpaid_invoices,
 			"currency": company.default_currency,
 			"report_date": frappe.utils.nowdate(),
 			"report_time": frappe.utils.nowtime()
@@ -535,6 +792,22 @@ def test_cashier_shift_report():
 					"item_name": "Dairy Products",
 					"qty": 20,
 					"amount": 750.00
+				}
+			],
+			"unpaid_invoices": [
+				{
+					"name": "ACC-SINV-2025-00049",
+					"grand_total": 150.00,
+					"outstanding_amount": 150.00,
+					"customer": "John Doe",
+					"posting_date": "2025-08-07"
+				},
+				{
+					"name": "ACC-SINV-2025-00050",
+					"grand_total": 200.00,
+					"outstanding_amount": 200.00,
+					"customer": "Jane Smith",
+					"posting_date": "2025-08-07"
 				}
 			],
 			"currency": "KWD",
