@@ -274,8 +274,7 @@
                         {% endfor %}
                     {% endif %}
                     {{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}
-                    <!-- Debug: {{ unpaid_invoices | length }} invoices, total: {{ credit_sales_total }} -->
-                <!-- </td>
+                </td>
             </tr>
             <tr>
                 <td class="summary-label">Unpaid Invoices:</td>
@@ -354,7 +353,7 @@
 
     <!-- Payment Differences Section -->
     <div class="section">
-        <div class="section-title">PAYMENT DIFFERENCES</div>
+        <div class="section-title">PAYMENT MODES</div>
         <table class="payment-table">
             <thead>
                 <tr>
@@ -436,10 +435,11 @@
 
     <div class="divider"></div>
 
-    <!-- Unpaid Invoices Section -->
+    Unpaid Invoices Section
     {% if unpaid_invoices %}
     <div class="section">
         <div class="section-title">UNPAID INVOICES (CREDIT SALES)</div>
+        <!-- Debug: {{ unpaid_invoices | length }} invoices received -->
         <table class="items-table">
             <thead>
                 <tr>
@@ -453,7 +453,10 @@
                 <tr class="item-row">
                     <td class="item-name">{{ invoice.name[:15] }}{% if invoice.name|length > 15 %}...{% endif %}</td>
                     <td class="item-qty">{{ invoice.customer[:8] }}{% if invoice.customer|length > 8 %}...{% endif %}</td>
-                    <td class="item-amount">{{ frappe.utils.fmt_money(invoice.outstanding_amount, currency=currency) }}</td>
+                    <td class="item-amount">
+                        {{ frappe.utils.fmt_money(invoice.outstanding_amount, currency=currency) }}
+                        <!-- Debug: raw value = {{ invoice.outstanding_amount }} -->
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -468,6 +471,7 @@
                                 {% set total_outstanding = total_outstanding + (invoice.outstanding_amount or 0) %}
                             {% endfor %}
                             {{ frappe.utils.fmt_money(total_outstanding, currency=currency) }}
+                            <!-- Debug: calculated total = {{ total_outstanding }} -->
                         </strong>
                     </td>
                 </tr>

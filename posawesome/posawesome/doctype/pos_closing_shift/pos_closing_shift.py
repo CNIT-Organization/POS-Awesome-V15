@@ -215,12 +215,18 @@ def get_unpaid_invoices(pos_opening_shift):
 		as_dict=1,
 	)
 	
+	# Debug: Print all invoices found
+	print(f"DEBUG: Found {len(all_invoices)} invoices for shift {pos_opening_shift}")
+	
 	# Filter for unpaid invoices
 	unpaid_invoices = []
 	for invoice in all_invoices:
-		if flt(invoice.outstanding_amount) > 0:
+		outstanding = flt(invoice.outstanding_amount)
+		print(f"DEBUG: Invoice {invoice.name} - Outstanding: {outstanding} (raw: {invoice.outstanding_amount})")
+		if outstanding > 0:
 			unpaid_invoices.append(invoice)
 	
+	print(f"DEBUG: Found {len(unpaid_invoices)} unpaid invoices")
 	return unpaid_invoices
 
 
@@ -249,6 +255,27 @@ def get_closing_shift_credit_sales(closing_shift_name):
 		"pos_opening_shift": closing_shift_doc.pos_opening_shift,
 		"user": closing_shift_doc.user,
 		"company": closing_shift_doc.company
+	}
+
+
+@frappe.whitelist()
+def check_invoice_outstanding(invoice_name):
+	"""
+	Check the outstanding amount for a specific invoice
+	"""
+	if not frappe.db.exists("Sales Invoice", invoice_name):
+		return {"error": "Invoice not found"}
+	
+	invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+	
+	return {
+		"invoice_name": invoice_name,
+		"grand_total": invoice_doc.grand_total,
+		"outstanding_amount": invoice_doc.outstanding_amount,
+		"paid_amount": invoice_doc.paid_amount,
+		"pos_opening_shift": getattr(invoice_doc, 'posa_pos_opening_shift', None),
+		"docstatus": invoice_doc.docstatus,
+		"customer": invoice_doc.customer
 	}
 
 

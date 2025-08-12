@@ -123,7 +123,7 @@ export default {
 
 	// Keyboard shortcut: . key - Edit quantity
 	shortEditQuantity(e) {
-		if (e.key === ".") {
+		if (e.key === "F5") {
 			e.preventDefault();
 			e.stopPropagation();
 			this.editQuantity();
