@@ -55,7 +55,7 @@
         }
         
         .section {
-            margin: 8px 0;
+            margin: 10px 0;
         }
         
         .section-title {
@@ -112,6 +112,7 @@
             border-bottom: 1px solid #000;
             padding-top: 2px;
             padding-bottom: 2px;
+            background-color: #f8f8f8;
         }
         
         .payment-table {
@@ -140,11 +141,11 @@
         }
         
         .payment-type {
-            width: 45%;
+            width: 60%;
         }
         
         .payment-amount {
-            width: 18%;
+            width: 40%;
             text-align: right;
         }
         
@@ -162,12 +163,12 @@
         }
         
         .summary-label {
-            width: 65%;
+            width: 60%;
             font-weight: bold;
         }
         
         .summary-value {
-            width: 35%;
+            width: 40%;
             text-align: right;
         }
         
@@ -227,7 +228,7 @@
     </div>
 
     <!-- Opening Balance Section -->
-    <div class="section">
+    <!-- <div class="section">
         <div class="section-title">OPENING BALANCE</div>
         <table class="summary-table">
             <tr>
@@ -237,9 +238,9 @@
         </table>
     </div>
 
-    <div class="divider"></div>
+    <div class="divider"></div> -->
 
-    <!-- Cash Sales Section -->
+    <!-- Cash Sales Section
     <div class="section">
         <div class="section-title">CASH SALES</div>
         <table class="summary-table">
@@ -258,39 +259,15 @@
         </table>
     </div>
 
-    <div class="divider"></div>
+    <div class="divider"></div> -->
 
-    <!-- Credit Sales Section
+
+    <!-- Cash Summary Section -->
     <div class="section">
-        <div class="section-title">CREDIT SALES</div>
+        <div class="section-title">CASH SUMMARY</div>
         <table class="summary-table">
             <tr>
-                <td class="summary-label">Credit Sales Total:</td>
-                <td class="summary-value">
-                    {% set credit_sales_total = 0 %}
-                    {% if unpaid_invoices %}
-                        {% for invoice in unpaid_invoices %}
-                            {% set credit_sales_total = credit_sales_total + (invoice.outstanding_amount or 0) %}
-                        {% endfor %}
-                    {% endif %}
-                    {{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}
-                </td>
-            </tr>
-            <tr>
-                <td class="summary-label">Unpaid Invoices:</td>
-                <td class="summary-value">{{ unpaid_invoices | length if unpaid_invoices else 0 }}</td>
-            </tr>
-        </table>
-    </div> -->
-
-    <div class="divider"></div>
-
-    <!-- Expected Cash in Drawer Section -->
-    <div class="section">
-        <div class="section-title">EXPECTED CASH IN DRAWER</div>
-        <table class="summary-table">
-            <tr>
-                <td class="summary-label">Opening Amount:</td>
+                <td class="summary-label">Opening Balance:</td>
                 <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.payment_reconciliation | sum(attribute='opening_amount'), currency=currency) }}</td>
             </tr>
             {% for payment in closing_shift.payment_reconciliation %}
@@ -351,38 +328,38 @@
 
     <div class="divider"></div>
 
-    <!-- Payment Differences Section -->
+    <!-- Payment Modes Section -->
     <div class="section">
         <div class="section-title">PAYMENT MODES</div>
         <table class="payment-table">
             <thead>
                 <tr>
                     <th class="payment-type">Payment Type</th>
-                    <th class="payment-amount">Difference</th>
+                    <th class="payment-amount">Amount</th>
                 </tr>
             </thead>
             <tbody>
                 {% for payment in closing_shift.payment_reconciliation %}
-                {% if payment.difference and payment.difference != 0 %}
                 <tr class="payment-row">
                     <td class="payment-type">{{ payment.mode_of_payment[:12] }}{% if payment.mode_of_payment|length > 12 %}...{% endif %}</td>
-                    <td class="payment-amount">{{ frappe.utils.fmt_money(payment.difference or 0, currency=currency) }}</td>
+                    <td class="payment-amount">{{ frappe.utils.fmt_money(payment.expected_amount or 0, currency=currency) }}</td>
+                </tr>
+                {% endfor %}
+                {% if unpaid_invoices %}
+                <tr class="payment-row">
+                    <td class="payment-type">Credit Sale</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(unpaid_invoices | sum(attribute='outstanding_amount'), currency=currency) }}
+                    </td>
                 </tr>
                 {% endif %}
-                {% endfor %}
             </tbody>
             <tfoot>
                 <tr class="total-row">
-                    <td class="payment-type"><strong>TOTAL DIFFERENCE:</strong></td>
+                    <td class="payment-type"><strong>TOTAL AMOUNT:</strong></td>
                     <td class="payment-amount">
                         <strong>
-                            {% set total_difference = 0 %}
-                            {% for payment in closing_shift.payment_reconciliation %}
-                                {% if payment.difference %}
-                                    {% set total_difference = total_difference + (payment.difference or 0) %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ frappe.utils.fmt_money(total_difference, currency=currency) }}
+                            {{ frappe.utils.fmt_money(closing_shift.net_total or 0, currency=currency) }}
                         </strong>
                     </td>
                 </tr>
@@ -390,33 +367,17 @@
         </table>
     </div>
 
-    <div class="divider"></div>
-
     <!-- Summary Section -->
     <div class="section">
         <div class="section-title">SUMMARY</div>
         <table class="summary-table">
             <tr>
-                <td class="summary-label">Grand Total:</td>
-                <td class="summary-value">
-                    {% set cash_sales_total = 0 %}
-                    {% for payment in closing_shift.payment_reconciliation %}
-                        {% if payment.mode_of_payment.lower() == 'cash' %}
-                            {% set cash_sales_total = cash_sales_total + (payment.expected_amount or 0) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% set credit_sales_total = 0 %}
-                    {% if unpaid_invoices %}
-                        {% for invoice in unpaid_invoices %}
-                            {% set credit_sales_total = credit_sales_total + (invoice.outstanding_amount or 0) %}
-                        {% endfor %}
-                    {% endif %}
-                    {{ frappe.utils.fmt_money(cash_sales_total + credit_sales_total, currency=currency) }}
-                </td>
+                <td class="summary-label">Net Sales:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.net_total or 0, currency=currency) }}</td>
             </tr>
             <tr>
-                <td class="summary-label">Net Total:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.net_total or 0, currency=currency) }}</td>
+                <td class="summary-label">Opening Balance:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(closing_shift.payment_reconciliation | sum(attribute='opening_amount'), currency=currency) }}</td>
             </tr>
             <tr>
                 <td class="summary-label">Total Quantity:</td>
@@ -433,9 +394,7 @@
         </table>
     </div>
 
-    <div class="divider"></div>
-
-    Unpaid Invoices Section
+    <!-- Unpaid Invoices Section -->
     {% if unpaid_invoices %}
     <div class="section">
         <div class="section-title">UNPAID INVOICES (CREDIT SALES)</div>
@@ -466,19 +425,13 @@
                     <td class="item-qty"><strong>{{ unpaid_invoices | length }}</strong></td>
                     <td class="item-amount">
                         <strong>
-                            {% set total_outstanding = 0 %}
-                            {% for invoice in unpaid_invoices %}
-                                {% set total_outstanding = total_outstanding + (invoice.outstanding_amount or 0) %}
-                            {% endfor %}
-                            {{ frappe.utils.fmt_money(total_outstanding, currency=currency) }}
-                            <!-- Debug: calculated total = {{ total_outstanding }} -->
+                            {{ frappe.utils.fmt_money(unpaid_invoices | sum(attribute='outstanding_amount'), currency=currency) }}
                         </strong>
                     </td>
                 </tr>
             </tfoot>
         </table>
     </div>
-    <div class="divider"></div>
     {% endif %}
 
     <!-- Items Sold Section -->
