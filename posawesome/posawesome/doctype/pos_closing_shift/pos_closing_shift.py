@@ -589,6 +589,9 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get unpaid invoices (credit sales) for this shift
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
+	# Get petty cash entries for this shift
+	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
+	
 	# Prepare data for template
 	report_data = {
 		"closing_shift": closing_shift_doc,
@@ -597,6 +600,7 @@ def print_cashier_shift_report(closing_shift_name):
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
+		"petty_cash_data": petty_cash_data,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime()
@@ -655,6 +659,9 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get unpaid invoices (credit sales) for this shift
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
+	# Get petty cash entries for this shift
+	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
+	
 	# Calculate all totals in Python
 	# Opening balance should only include cash (not Knet or other payment methods)
 	opening_cash_balance = 0
@@ -701,6 +708,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
+		"petty_cash_data": petty_cash_data,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
@@ -715,7 +723,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"expected_cash_in_drawer": expected_cash_in_drawer,
 		"cash_over_short": cash_over_short,
 		"cash_payment_found": cash_payment_found,
-		"cash_closing_amount": cash_closing_amount
+		"cash_closing_amount": cash_closing_amount,
+		"petty_cash_data": petty_cash_data
 	}
 	
 	# Generate HTML content
@@ -726,6 +735,33 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	
 	# Return the HTML content for direct printing
 	return html_content
+
+
+@frappe.whitelist()
+def get_petty_cash_entries_for_shift(pos_opening_shift):
+	"""
+	Get all petty cash entries for a specific POS opening shift
+	"""
+	petty_cash_entries = frappe.get_all(
+		"Petty Cash",
+		filters={
+			"pos_shift": pos_opening_shift,
+			"docstatus": 1  # Only submitted entries
+		},
+		fields=["entry_type", "amount", "note", "date", "creation"],
+		order_by="creation asc"
+	)
+	
+	# Calculate totals
+	pay_in_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay In")
+	pay_out_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay Out")
+	
+	return {
+		"entries": petty_cash_entries,
+		"pay_in_total": pay_in_total,
+		"pay_out_total": pay_out_total,
+		"net_petty_cash": pay_in_total - pay_out_total
+	}
 
 
 def get_items_sold_during_shift(pos_opening_shift):
@@ -802,6 +838,9 @@ def test_cashier_shift_report():
 		# Get unpaid invoices (credit sales) for this shift
 		unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 		
+		# Get petty cash entries for this shift
+		petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
+		
 		# Prepare data for template
 		report_data = {
 			"closing_shift": closing_shift_doc,
@@ -810,6 +849,7 @@ def test_cashier_shift_report():
 			"pos_profile": pos_profile,
 			"items_sold": items_sold,
 			"unpaid_invoices": unpaid_invoices,
+			"petty_cash_data": petty_cash_data,
 			"currency": company.default_currency,
 			"report_date": frappe.utils.nowdate(),
 			"report_time": frappe.utils.nowtime()
@@ -818,78 +858,26 @@ def test_cashier_shift_report():
 		# Fallback to sample data if no closing shift exists
 		report_data = {
 			"closing_shift": {
-				"grand_total": 700.00,
-				"net_total": 700.00,
-				"total_quantity": 25,
-				"credit_sales_total": 150.00,
-				"unpaid_invoices_count": 2,
-				"period_start_date": "2025-08-07 08:00:00",
-				"period_end_date": "2025-08-07 20:00:00",
-				"payment_reconciliation": [
-					{
-						"mode_of_payment": "Cash",
-						"opening_amount": 25.00,
-						"closing_amount": 678.00,
-						"difference": -4.27,
-						"expected_amount": 673.73
-					},
-					{
-						"mode_of_payment": "Knet",
-						"opening_amount": 0.00,
-						"closing_amount": 0.00,
-						"difference": 0.00,
-						"expected_amount": 0.00
-					}
-				]
+				"name": "Sample Closing Shift",
+				"period_start_date": frappe.utils.nowdatetime(),
+				"period_end_date": frappe.utils.nowdatetime(),
+				"total_quantity": 0,
+				"net_total": 0
 			},
-			"company": {
-				"name": "Yes Fresh",
-				"company_name": "Yes Fresh",
-				"default_currency": "KWD"
+			"company": frappe.get_doc("Company", frappe.defaults.get_global_default("company")),
+			"user": frappe.get_doc("User", frappe.session.user),
+			"pos_profile": frappe.get_doc("POS Profile", frappe.db.get_value("POS Profile", {"disabled": 0}, "name")),
+			"items_sold": [],
+			"unpaid_invoices": [],
+			"petty_cash_data": {
+				"entries": [],
+				"pay_in_total": 0,
+				"pay_out_total": 0,
+				"net_petty_cash": 0
 			},
-			"user": {
-				"name": "Administrator",
-				"full_name": "Administrator"
-			},
-			"pos_profile": {
-				"company_address": "SAS test"
-			},
-			"items_sold": [
-				{
-					"item_name": "Fresh Vegetables",
-					"qty": 10,
-					"amount": 500.00
-				},
-				{
-					"item_name": "Organic Fruits",
-					"qty": 5,
-					"amount": 250.00
-				},
-				{
-					"item_name": "Dairy Products",
-					"qty": 20,
-					"amount": 750.00
-				}
-			],
-			"unpaid_invoices": [
-				{
-					"name": "ACC-SINV-2025-00049",
-					"grand_total": 150.00,
-					"outstanding_amount": 150.00,
-					"customer": "John Doe",
-					"posting_date": "2025-08-07"
-				},
-				{
-					"name": "ACC-SINV-2025-00050",
-					"grand_total": 200.00,
-					"outstanding_amount": 200.00,
-					"customer": "Jane Smith",
-					"posting_date": "2025-08-07"
-				}
-			],
-			"currency": "KWD",
-			"report_date": "2025-08-07",
-			"report_time": "20:45:00"
+			"currency": frappe.defaults.get_global_default("currency"),
+			"report_date": frappe.utils.nowdate(),
+			"report_time": frappe.utils.nowtime()
 		}
 	
 	html_content = frappe.render_template(

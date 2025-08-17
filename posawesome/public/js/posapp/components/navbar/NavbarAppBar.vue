@@ -32,6 +32,31 @@
 		<!-- Cache Usage Meter -->
 		<slot name="cache-usage-meter"></slot>
 
+		<!-- Petty Cash Buttons -->
+		<v-btn
+			icon
+			color="success"
+			class="mx-1 petty-cash-btn"
+			@click="$emit('show-petty-cash-pay-in')"
+		>
+			<v-icon>mdi-cash-plus</v-icon>
+			<v-tooltip activator="parent" location="bottom">
+				{{ __("Pay In") }}
+			</v-tooltip>
+		</v-btn>
+
+		<v-btn
+			icon
+			color="warning"
+			class="mx-1 petty-cash-btn"
+			@click="$emit('show-petty-cash-pay-out')"
+		>
+			<v-icon>mdi-cash-minus</v-icon>
+			<v-tooltip activator="parent" location="bottom">
+				{{ __("Pay Out") }}
+			</v-tooltip>
+		</v-btn>
+
 		<div class="profile-section mx-1">
 			<v-chip color="primary" variant="outlined" class="profile-chip">
 				<v-icon start>mdi-account-circle</v-icon>
@@ -97,7 +122,7 @@ export default {
 			return "User";
 		},
 	},
-	emits: ["nav-click", "go-desk", "show-offline-invoices"],
+	emits: ["nav-click", "go-desk", "show-offline-invoices", "show-petty-cash-pay-in", "show-petty-cash-pay-out"],
 };
 </script>
 
@@ -164,6 +189,17 @@ export default {
 
 .offline-invoices-btn:hover {
 	transform: scale(1.05);
+}
+
+/* Petty Cash Buttons */
+.petty-cash-btn {
+	transition: all 0.3s ease;
+	padding: 4px;
+}
+
+.petty-cash-btn:hover {
+	transform: scale(1.05);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .offline-invoices-btn.has-pending {

@@ -8,6 +8,8 @@
 			@nav-click="handleNavClick"
 			@go-desk="goDesk"
 			@show-offline-invoices="showOfflineInvoices = true"
+			@show-petty-cash-pay-in="showPettyCashPayIn = true"
+			@show-petty-cash-pay-out="showPettyCashPayOut = true"
 		>
 			<!-- Slot for status indicator -->
 			<template #status-indicator>
@@ -71,6 +73,88 @@
 			<v-card>
 				<v-card-title class="text-h5">{{ freezeTitle }}</v-card-title>
 				<v-card-text>{{ freezeMsg }}</v-card-text>
+				<v-card-actions>
+					<v-spacer></v-spacer>
+					<v-btn color="primary" @click="freeze = false">OK</v-btn>
+				</v-card-actions>
+			</v-card>
+		</v-dialog>
+
+		<!-- Petty Cash Pay In Dialog -->
+		<v-dialog v-model="showPettyCashPayIn" persistent max-width="400">
+			<v-card>
+				<v-card-title class="text-h5 text-center">
+					<v-icon color="success" class="mr-2">mdi-cash-plus</v-icon>
+					{{ __("Pay In") }}
+				</v-card-title>
+				<v-card-text>
+					<v-form ref="pettyCashPayInForm">
+						<v-text-field
+							v-model="pettyCashData.amount"
+							:label="__('Amount')"
+							type="number"
+							:rules="[v => !!v || __('Amount is required'), v => v > 0 || __('Amount must be positive')]"
+							required
+							prepend-icon="mdi-currency-usd"
+						></v-text-field>
+						<v-textarea
+							v-model="pettyCashData.note"
+							:label="__('Note')"
+							rows="3"
+							:rules="[v => !!v || __('Note is required')]"
+							required
+							prepend-icon="mdi-note-text"
+						></v-textarea>
+					</v-form>
+				</v-card-text>
+				<v-card-actions>
+					<v-spacer></v-spacer>
+					<v-btn color="grey" @click="closePettyCashPayIn">
+						{{ __("Cancel") }}
+					</v-btn>
+					<v-btn color="success" @click="submitPettyCashPayIn" :loading="pettyCashSubmitting">
+						{{ __("Submit") }}
+					</v-btn>
+				</v-card-actions>
+			</v-card>
+		</v-dialog>
+
+		<!-- Petty Cash Pay Out Dialog -->
+		<v-dialog v-model="showPettyCashPayOut" persistent max-width="400">
+			<v-card>
+				<v-card-title class="text-h5 text-center">
+					<v-icon color="warning" class="mr-2">mdi-cash-minus</v-icon>
+					{{ __("Pay Out") }}
+				</v-card-title>
+				<v-card-text>
+					<v-form ref="pettyCashPayOutForm">
+						<v-text-field
+							v-model="pettyCashData.amount"
+							:label="__('Amount')"
+							type="number"
+							:rules="[v => !!v || __('Amount is required'), v => v > 0 || __('Amount must be positive')]"
+							required
+							prepend-icon="mdi-currency-usd"
+						></v-text-field>
+						<v-textarea
+							v-model="pettyCashData.note"
+							:label="__('Note')"
+							rows="3"
+							:rules="[v => !!v || __('Note is required')]"
+							required
+							prepend-icon="mdi-note-text"
+						></v-textarea>
+					</v-form>
+				</v-card-text>
+				<v-card-actions>
+					<v-spacer></v-spacer>
+					<v-btn color="grey" @click="closePettyCashPayOut">
+						{{ __("Cancel") }}
+					</v-btn>
+					<v-btn color="warning" @click="submitPettyCashPayOut" :loading="pettyCashSubmitting">
+						{{ __("Submit") }}
+					</v-btn>
+				</v-card-actions>
 			</v-card>
 		</v-dialog>
 
@@ -160,6 +244,16 @@ export default {
 			companyImg: "/assets/posawesome/js/posapp/components/pos/pos.png",
 			showAboutDialog: false,
 			showOfflineInvoices: false,
+			showPettyCashPayIn: false,
+			showPettyCashPayOut: false,
+			pettyCashData: {
+				amount: "",
+				note: "",
+				entry_type: "",
+				pos_shift: "",
+				pos_profile: ""
+			},
+			pettyCashSubmitting: false,
 			freeze: false,
 			freezeTitle: "",
 			freezeMsg: "",
@@ -274,6 +368,137 @@ export default {
 		},
 		updateAfterDelete() {
 			this.$emit("update-after-delete");
+		},
+		// Petty Cash Methods
+		closePettyCashPayIn() {
+			this.showPettyCashPayIn = false;
+			this.resetPettyCashForm();
+		},
+		closePettyCashPayOut() {
+			this.showPettyCashPayOut = false;
+			this.resetPettyCashForm();
+		},
+		resetPettyCashForm() {
+			this.pettyCashData = {
+				amount: "",
+				note: "",
+				entry_type: "",
+				pos_shift: "",
+				pos_profile: ""
+			};
+			this.pettyCashSubmitting = false;
+		},
+		async submitPettyCashPayIn() {
+			if (!this.$refs.pettyCashPayInForm.validate()) return;
+			
+			this.pettyCashSubmitting = true;
+			try {
+				await this.createPettyCashEntry("Pay In");
+				this.showPettyCashPayIn = false;
+				this.showMessage({
+					title: __("Pay In recorded successfully"),
+					color: "success",
+				});
+			} catch (error) {
+				console.error("Failed to create petty cash entry:", error);
+				this.showMessage({
+					title: __("Failed to record Pay In"),
+					color: "error",
+				});
+			} finally {
+				this.pettyCashSubmitting = false;
+			}
+		},
+		async submitPettyCashPayOut() {
+			if (!this.$refs.pettyCashPayOutForm.validate()) return;
+			
+			this.pettyCashSubmitting = true;
+			try {
+				await this.createPettyCashEntry("Pay Out");
+				this.showPettyCashPayOut = false;
+				this.showMessage({
+					title: __("Pay Out recorded successfully"),
+					color: "success",
+				});
+			} catch (error) {
+				console.error("Failed to create petty cash entry:", error);
+				this.showMessage({
+					title: __("Failed to record Pay Out"),
+					color: "error",
+				});
+			} finally {
+				this.pettyCashSubmitting = false;
+			}
+		},
+		async createPettyCashEntry(entryType) {
+			// Get current POS opening shift and profile
+			const posData = await this.getCurrentPOSData();
+			
+			const pettyCashDoc = {
+				doctype: "Petty Cash",
+				date: frappe.datetime.get_today(),
+				entry_type: entryType,
+				pos_shift: posData.pos_opening_shift?.name || "",
+				pos_profile: posData.pos_profile?.name || "",
+				amount: parseFloat(this.pettyCashData.amount),
+				note: this.pettyCashData.note,
+				opening_amount: posData.pos_opening_shift?.balance_details?.[0]?.opening_amount || 0,
+				closing_amount: posData.pos_opening_shift?.balance_details?.[0]?.closing_amount || 0
+			};
+
+			return new Promise((resolve, reject) => {
+				frappe.call({
+					method: "frappe.client.insert",
+					args: {
+						doc: pettyCashDoc
+					},
+					callback: (r) => {
+						if (r.exc) {
+							reject(r.exc);
+						} else {
+							frappe.call({
+								method: "frappe.client.submit",
+								args: {
+									doc: r.message
+								},
+								callback: (submitR) => {
+									if (submitR.exc) {
+										reject(submitR.exc);
+									} else {
+										resolve(submitR.message);
+									}
+								},
+								error: (err) => {
+									reject(err);
+								}
+							});
+						}
+					},
+					error: (err) => {
+						reject(err);
+					}
+				});
+			});
+		},
+		async getCurrentPOSData() {
+			return new Promise((resolve, reject) => {
+				frappe.call({
+					method: "posawesome.posawesome.api.shifts.check_opening_shift",
+					args: {
+						user: frappe.session.user
+					},
+					callback: (r) => {
+						if (r.exc) {
+							reject(r.exc);
+						} else {
+							resolve(r.message || {});
+						}
+					},
+					error: (err) => {
+						reject(err);
+					}
+				});
+			});
 		},
 		showMessage(data) {
 			this.snackText = data.title;
