@@ -738,6 +738,41 @@ def direct_print_cashier_shift_report(closing_shift_name):
 
 
 @frappe.whitelist()
+def create_and_submit_petty_cash_entry(entry_data):
+	"""
+	Create and submit a petty cash entry
+	"""
+	try:
+		# Create the petty cash document
+		petty_cash_doc = frappe.new_doc("Petty Cash")
+		petty_cash_doc.date = entry_data.get("date")
+		petty_cash_doc.entry_type = entry_data.get("entry_type")
+		petty_cash_doc.pos_shift = entry_data.get("pos_shift")
+		petty_cash_doc.pos_profile = entry_data.get("pos_profile")
+		petty_cash_doc.amount = entry_data.get("amount")
+		petty_cash_doc.note = entry_data.get("note")
+		petty_cash_doc.opening_amount = entry_data.get("opening_amount", 0)
+		petty_cash_doc.closing_amount = entry_data.get("closing_amount", 0)
+		
+		# Insert and submit
+		petty_cash_doc.insert(ignore_permissions=True)
+		petty_cash_doc.submit()
+		
+		return {
+			"success": True,
+			"message": f"Petty Cash {entry_data.get('entry_type')} recorded successfully",
+			"doc_name": petty_cash_doc.name
+		}
+		
+	except Exception as e:
+		frappe.logger().error(f"Failed to create petty cash entry: {str(e)}")
+		return {
+			"success": False,
+			"message": f"Failed to record {entry_data.get('entry_type')}: {str(e)}"
+		}
+
+
+@frappe.whitelist()
 def get_petty_cash_entries_for_shift(pos_opening_shift):
 	"""
 	Get all petty cash entries for a specific POS opening shift

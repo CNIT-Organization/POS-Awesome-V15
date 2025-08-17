@@ -434,8 +434,7 @@ export default {
 			// Get current POS opening shift and profile
 			const posData = await this.getCurrentPOSData();
 			
-			const pettyCashDoc = {
-				doctype: "Petty Cash",
+			const entryData = {
 				date: frappe.datetime.get_today(),
 				entry_type: entryType,
 				pos_shift: posData.pos_opening_shift?.name || "",
@@ -448,30 +447,17 @@ export default {
 
 			return new Promise((resolve, reject) => {
 				frappe.call({
-					method: "frappe.client.insert",
+					method: "posawesome.posawesome.doctype.pos_closing_shift.pos_closing_shift.create_and_submit_petty_cash_entry",
 					args: {
-						doc: pettyCashDoc
+						entry_data: entryData
 					},
 					callback: (r) => {
 						if (r.exc) {
 							reject(r.exc);
+						} else if (r.message && r.message.success) {
+							resolve(r.message);
 						} else {
-							frappe.call({
-								method: "frappe.client.submit",
-								args: {
-									doc: r.message
-								},
-								callback: (submitR) => {
-									if (submitR.exc) {
-										reject(submitR.exc);
-									} else {
-										resolve(submitR.message);
-									}
-								},
-								error: (err) => {
-									reject(err);
-								}
-							});
+							reject(new Error(r.message?.message || "Failed to create petty cash entry"));
 						}
 					},
 					error: (err) => {
