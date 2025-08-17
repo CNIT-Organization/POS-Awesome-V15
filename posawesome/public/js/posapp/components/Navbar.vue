@@ -402,7 +402,7 @@ export default {
 			} catch (error) {
 				console.error("Failed to create petty cash entry:", error);
 				this.showMessage({
-					title: __("Failed to record Pay In"),
+					title: error.message || __("Failed to record Pay In"),
 					color: "error",
 				});
 			} finally {
@@ -423,7 +423,7 @@ export default {
 			} catch (error) {
 				console.error("Failed to create petty cash entry:", error);
 				this.showMessage({
-					title: __("Failed to record Pay Out"),
+					title: error.message || __("Failed to record Pay Out"),
 					color: "error",
 				});
 			} finally {
@@ -434,13 +434,24 @@ export default {
 			// Get current POS opening shift and profile
 			const posData = await this.getCurrentPOSData();
 			
+			// Validate amount
+			const amount = parseFloat(this.pettyCashData.amount);
+			if (isNaN(amount) || amount <= 0) {
+				throw new Error("Amount must be a positive number");
+			}
+			
+			// Validate note
+			if (!this.pettyCashData.note || !this.pettyCashData.note.trim()) {
+				throw new Error("Note is required");
+			}
+			
 			const entryData = {
 				date: frappe.datetime.get_today(),
 				entry_type: entryType,
 				pos_shift: posData.pos_opening_shift?.name || "",
 				pos_profile: posData.pos_profile?.name || "",
-				amount: parseFloat(this.pettyCashData.amount),
-				note: this.pettyCashData.note,
+				amount: amount,
+				note: this.pettyCashData.note.trim(),
 				opening_amount: posData.pos_opening_shift?.balance_details?.[0]?.opening_amount || 0,
 				closing_amount: posData.pos_opening_shift?.balance_details?.[0]?.closing_amount || 0
 			};

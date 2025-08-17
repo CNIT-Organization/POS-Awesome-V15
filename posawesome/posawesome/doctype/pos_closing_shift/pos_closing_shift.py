@@ -743,6 +743,30 @@ def create_and_submit_petty_cash_entry(entry_data):
 	Create and submit a petty cash entry
 	"""
 	try:
+		# Parse the JSON string if it's passed as a string
+		if isinstance(entry_data, str):
+			import json
+			entry_data = json.loads(entry_data)
+		
+		# Validate required fields
+		if not entry_data.get("amount") or entry_data.get("amount") <= 0:
+			return {
+				"success": False,
+				"message": "Amount must be greater than 0"
+			}
+		
+		if not entry_data.get("note") or not entry_data.get("note").strip():
+			return {
+				"success": False,
+				"message": "Note is required"
+			}
+		
+		if not entry_data.get("entry_type"):
+			return {
+				"success": False,
+				"message": "Entry type is required"
+			}
+		
 		# Create the petty cash document
 		petty_cash_doc = frappe.new_doc("Petty Cash")
 		petty_cash_doc.date = entry_data.get("date")
@@ -768,7 +792,7 @@ def create_and_submit_petty_cash_entry(entry_data):
 		frappe.logger().error(f"Failed to create petty cash entry: {str(e)}")
 		return {
 			"success": False,
-			"message": f"Failed to record {entry_data.get('entry_type')}: {str(e)}"
+			"message": f"Failed to record petty cash entry: {str(e)}"
 		}
 
 
