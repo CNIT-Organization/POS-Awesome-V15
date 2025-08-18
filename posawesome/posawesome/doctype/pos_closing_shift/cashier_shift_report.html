@@ -66,13 +66,6 @@
             padding-bottom: 2px;
         }
         
-        .section-subtitle {
-            font-size: 8px;
-            font-weight: bold;
-            margin: 4px 0 2px 0;
-            color: #666;
-        }
-        
         .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -234,21 +227,8 @@
         </div>
     </div>
 
-    <!-- Opening Balance Section -->
-    <div class="section">
-        <div class="section-title">OPENING BALANCE</div>
-        <table class="summary-table">
-            <tr>
-                <td class="summary-label">Opening Cash Amount:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(opening_balance, currency=currency) }}</td>
-            </tr>
-        </table>
-    </div>
-
-    <div class="divider"></div>
-
     <!-- Cash Sales Section -->
-    <!-- <div class="section">
+    <div class="section">
         <div class="section-title">CASH SALES</div>
         <table class="summary-table">
             <tr>
@@ -258,8 +238,7 @@
         </table>
     </div>
 
-    <div class="divider"></div> -->
-
+    <div class="divider"></div>
 
     <!-- Cash Summary Section -->
     <div class="section">
@@ -273,29 +252,21 @@
                 <td class="summary-label">Cash Sales:</td>
                 <td class="summary-value">{{ frappe.utils.fmt_money(cash_sales_total, currency=currency) }}</td>
             </tr>
+            <tr>
+                <td class="summary-label">Pay In (+):</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(pay_in_amount, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Pay Out (-):</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(pay_out_amount, currency=currency) }}</td>
+            </tr>
             <tr class="total-row">
                 <td class="summary-label"><strong>Expected Cash in Drawer:</strong></td>
                 <td class="summary-value"><strong>{{ frappe.utils.fmt_money(expected_cash_in_drawer, currency=currency) }}</strong></td>
             </tr>
         </table>
     </div>
-    <div class="divider"></div>
 
-    <!-- Credit Sales Section -->
-
-    <div class="section">
-        <div class="section-title">CREDIT SALES</div>
-        <table class="summary-table">
-            <tr>
-                <td class="summary-label">Credit Sales Total:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Unpaid Invoices Count:</td>
-                <td class="summary-value">{{ unpaid_invoices_count }}</td>
-            </tr>
-        </table>
-    </div>
     <div class="divider"></div>
 
     <!-- Cashier Closing Amount Section -->
@@ -325,6 +296,23 @@
                 </td>
             </tr>
             {% endif %}
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Credit Sales Section -->
+    <div class="section">
+        <div class="section-title">CREDIT SALES</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Credit Sales Total:</td>
+                <td class="summary-value">{{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Unpaid Invoices Count:</td>
+                <td class="summary-value">{{ unpaid_invoices_count }}</td>
+            </tr>
         </table>
     </div>
 
@@ -370,40 +358,10 @@
         </table>
     </div>
 
-    <!-- Summary Section -->
+    <!-- Total Quantity and Shift Period -->
     <div class="section">
-        <div class="section-title">SUMMARY</div>
+        <div class="section-title">SHIFT INFO</div>
         <table class="summary-table">
-            <tr>
-                <td class="summary-label">Cash Sales:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(cash_sales_total, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Credit Sales:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}</td>
-            </tr>
-            <tr class="total-row">
-                <td class="summary-label"><strong>Grand Total:</strong></td>
-                <td class="summary-value"><strong>{{ frappe.utils.fmt_money(grand_total, currency=currency) }}</strong></td>
-            </tr>
-            {% if petty_cash_data and petty_cash_data.entries and petty_cash_data.entries|length > 0 %}
-            <tr>
-                <td class="summary-label">Petty Cash Pay In:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(petty_cash_data.pay_in_total, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Petty Cash Pay Out:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(petty_cash_data.pay_out_total, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Net Petty Cash:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(petty_cash_data.net_petty_cash, currency=currency) }}</td>
-            </tr>
-            {% endif %}
-            <tr>
-                <td class="summary-label">Opening Cash Balance:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(opening_balance, currency=currency) }}</td>
-            </tr>
             <tr>
                 <td class="summary-label">Total Quantity:</td>
                 <td class="summary-value">{{ closing_shift.total_quantity or 0 }}</td>
@@ -420,7 +378,7 @@
     </div>
 
     <!-- Unpaid Invoices Section -->
-    <!-- {% if unpaid_invoices and unpaid_invoices|length > 0 %}
+    {% if unpaid_invoices and unpaid_invoices|length > 0 %}
     <div class="section">
         <div class="section-title">UNPAID INVOICES (CREDIT SALES)</div>
         <table class="items-table">
@@ -455,51 +413,7 @@
             </tfoot>
         </table>
     </div>
-    {% endif %} -->
-
-    <!-- Petty Cash Section -->
-    {% if petty_cash_data and petty_cash_data.entries and petty_cash_data.entries|length > 0 %}
-    <div class="section">
-        <div class="section-title">PETTY CASH TRANSACTIONS</div>
-        <table class="summary-table">
-            <tr>
-                <td class="summary-label">Total Pay In:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(petty_cash_data.pay_in_total, currency=currency) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label">Total Pay Out:</td>
-                <td class="summary-value">{{ frappe.utils.fmt_money(petty_cash_data.pay_out_total, currency=currency) }}</td>
-            </tr>
-            <tr class="total-row">
-                <td class="summary-label"><strong>Net Petty Cash:</strong></td>
-                <td class="summary-value"><strong>{{ frappe.utils.fmt_money(petty_cash_data.net_petty_cash, currency=currency) }}</strong></td>
-            </tr>
-        </table>
-        
-        <!-- Petty Cash Details
-        <div class="section-subtitle">Transaction Details</div>
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th class="item-name">Type</th>
-                    <th class="item-qty">Amount</th>
-                    <th class="item-amount">Note</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in petty_cash_data.entries %}
-                <tr class="item-row">
-                    <td class="item-name">{{ entry.entry_type }}</td>
-                    <td class="item-qty">{{ frappe.utils.fmt_money(entry.amount, currency=currency) }}</td>
-                    <td class="item-amount">{{ entry.note[:25] }}{% if entry.note|length > 25 %}...{% endif %}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table> -->
-    </div>
     {% endif %}
-
-    <div class="divider"></div>
 
     <!-- Items Sold Section -->
     <div class="section">

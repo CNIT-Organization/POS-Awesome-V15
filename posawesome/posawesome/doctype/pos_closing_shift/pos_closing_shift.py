@@ -694,8 +694,10 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Calculate total amount (payments + credit sales)
 	total_amount = total_payments + credit_sales_total
 	
-	# Calculate expected cash in drawer (opening cash + cash sales)
-	expected_cash_in_drawer = opening_cash_balance + cash_sales_total
+	# Calculate expected cash in drawer (opening cash + cash sales + pay in - pay out)
+	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
+	pay_out_amount = flt(petty_cash_data.get('pay_out_total', 0) or 0)
+	expected_cash_in_drawer = opening_cash_balance + cash_sales_total + pay_in_amount - pay_out_amount
 	
 	# Calculate cash over/short
 	cash_over_short = cash_closing_amount - expected_cash_in_drawer if cash_payment_found else 0
@@ -724,6 +726,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"cash_over_short": cash_over_short,
 		"cash_payment_found": cash_payment_found,
 		"cash_closing_amount": cash_closing_amount,
+		"pay_in_amount": pay_in_amount,
+		"pay_out_amount": pay_out_amount,
 		"petty_cash_data": petty_cash_data
 	}
 	
