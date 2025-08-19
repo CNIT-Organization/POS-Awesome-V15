@@ -511,6 +511,46 @@ export default {
 				return;
 			}
 
+			if (!this.pos_opening_shift || !this.pos_opening_shift.name) {
+				this.eventBus.emit("show_message", {
+					title: __("No active POS shift found. Please start a POS shift first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.status !== "Open") {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not open. Please start a new POS shift first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (!this.pos_profile || !this.pos_profile.name) {
+				this.eventBus.emit("show_message", {
+					title: __("No POS profile found. Please select a POS profile first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.pos_profile !== this.pos_profile.name) {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not for the same POS profile. Please start a new POS shift."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.company !== this.pos_profile.company) {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not for the same company. Please start a new POS shift."),
+					color: "error",
+				});
+				return;
+			}
+
 			// Calculate total amount
 			const totalAmount = this.items.reduce((sum, item) => {
 				return sum + (item.amount || (item.rate * item.qty) || 0);
@@ -542,6 +582,18 @@ export default {
 			this.invoice_doc.plc_conversion_rate = 1;
 			this.invoice_doc.price_list_currency = this.pos_profile?.currency || "KWD";
 			this.invoice_doc.is_pos = 1;
+			// Add POS shift information - CRITICAL for invoice submission
+			this.invoice_doc.posa_pos_opening_shift = this.pos_opening_shift?.name;
+			this.invoice_doc.pos_profile = this.pos_profile?.name;
+			// Ensure company matches POS shift company
+			this.invoice_doc.company = this.pos_opening_shift?.company || this.pos_profile?.company || "Yes Fresh";
+			// Add posting date and other essential fields - ensure proper date format (YYYY-MM-DD)
+			const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+			this.invoice_doc.posting_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
+			this.invoice_doc.due_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
+			this.invoice_doc.update_stock = 1;
+			this.invoice_doc.ignore_pricing_rule = 1;
+			this.invoice_doc.posa_is_printed = 1;
 
 			// Initialize payments array with default payment methods from POS profile
 			if (!this.invoice_doc.payments) {
@@ -704,5 +756,27 @@ export default {
 				color: "warning",
 			});
 		}
+	},
+
+	// Helper method to format date for backend (YYYY-MM-DD)
+	formatDateForBackend(date) {
+		if (!date) return null;
+		if (typeof date === "string") {
+			if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+				return date;
+			}
+			if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(date)) {
+				const [d, m, y] = date.split("-");
+				return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+			}
+		}
+		const d = new Date(date);
+		if (!isNaN(d.getTime())) {
+			const year = d.getFullYear();
+			const month = `0${d.getMonth() + 1}`.slice(-2);
+			const day = `0${d.getDate()}`.slice(-2);
+			return `${year}-${month}-${day}`;
+		}
+		return date;
 	},
 };
