@@ -101,10 +101,79 @@ class POSClosingShift(Document):
 	@frappe.whitelist()
 	def get_payment_reconciliation_details(self):
 		currency = frappe.get_cached_value("Company", self.company, "default_currency")
-		return frappe.render_template(
-			"posawesome/posawesome/posawesome/doctype/pos_closing_shift/closing_shift_details.html",
-			{"data": self, "currency": currency},
-		)
+		try:
+			return frappe.render_template(
+				"posawesome/posawesome/posawesome/doctype/pos_closing_shift/closing_shift_details.html",
+				{"data": self, "currency": currency},
+			)
+		except Exception as e:
+			# Fallback: return a simple HTML structure if template fails
+			frappe.logger().error(f"Template rendering failed: {str(e)}")
+			return self._generate_fallback_html(currency)
+	
+	def _generate_fallback_html(self, currency):
+		"""Generate fallback HTML if template fails to load"""
+		html = f"""
+		<div class="clearfix"></div>
+		<div class="box">
+			<div class="grid-body">
+				<div class="rows text-center">
+					<!-- Sales summary section -->
+					<div>
+						<h6 class="text-center uppercase" style="color: #8D99A6">Sales Summary</h6>
+						<div class="tax-break-up" style="overflow-x: auto;">
+							<table class="table table-bordered table-hover">
+								<tbody>
+									<tr>
+										<td class="text-left font-bold">Grand Total</td>
+										<td class='text-right'> {frappe.utils.fmt_money(self.grand_total or '', currency=currency)}</td>
+									</tr>
+									<tr>
+										<td class="text-left font-bold">Net Total</td>
+										<td class='text-right'> {frappe.utils.fmt_money(self.net_total or '', currency=currency)}</td>
+									</tr>
+									<tr>
+										<td class="text-left font-bold">Total Quantity</td>
+										<td class='text-right'>{self.total_quantity or ''}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+					
+					<!-- Mode of payment section -->
+					<div>
+						<h6 class="text-center uppercase" style="color: #8D99A6">Mode of Payments</h6>
+						<div class="tax-break-up" style="overflow-x: auto;">
+							<table class="table table-bordered table-hover">
+								<thead>
+									<tr>
+										<th class="text-left">Mode of Payment</th>
+										<th class="text-right">Amount</th>
+									</tr>
+								</thead>
+								<tbody>
+		"""
+		
+		for payment in self.payment_reconciliation:
+			amount = payment.expected_amount - payment.opening_amount
+			html += f"""
+									<tr>
+										<td class="text-left">{payment.mode_of_payment}</td>
+										<td class='text-right'> {frappe.utils.fmt_money(amount, currency=currency)}</td>
+									</tr>
+			"""
+		
+		html += """
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		"""
+		return html
 
 	@frappe.whitelist()
 	def refresh_credit_sales(self):
