@@ -265,16 +265,19 @@ export default {
 
 .total-field-bold :deep(.v-field__input) {
 	font-weight: 700 !important;
-	font-size: 1.2rem !important;
+	font-size: 1.5rem !important;
+	color: #d32f2f !important;
 }
 
 .total-field-bold :deep(.v-label) {
 	font-weight: 600 !important;
-	font-size: 1.1rem !important;
+	font-size: 1.3rem !important;
+	color: #d32f2f !important;
 }
 
 .total-field-bold :deep(.v-field__prefix) {
 	font-weight: 700 !important;
-	font-size: 1.2rem !important;
+	font-size: 1.5rem !important;
+	color: #d32f2f !important;
 }
 </style>
