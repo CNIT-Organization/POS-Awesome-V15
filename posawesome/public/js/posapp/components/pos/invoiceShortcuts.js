@@ -582,25 +582,20 @@ export default {
 			this.invoice_doc.plc_conversion_rate = 1;
 			this.invoice_doc.price_list_currency = this.pos_profile?.currency || "KWD";
 			this.invoice_doc.is_pos = 1;
-			// Add POS shift information - CRITICAL for invoice submission
 			this.invoice_doc.posa_pos_opening_shift = this.pos_opening_shift?.name;
 			this.invoice_doc.pos_profile = this.pos_profile?.name;
-			// Ensure company matches POS shift company
 			this.invoice_doc.company = this.pos_opening_shift?.company || this.pos_profile?.company || "Yes Fresh";
-			// Add posting date and other essential fields - ensure proper date format (YYYY-MM-DD)
-			const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+			const today = new Date().toISOString().split('T')[0];
 			this.invoice_doc.posting_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
 			this.invoice_doc.due_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
 			this.invoice_doc.update_stock = 1;
 			this.invoice_doc.ignore_pricing_rule = 1;
 			this.invoice_doc.posa_is_printed = 1;
 
-			// Initialize payments array with default payment methods from POS profile
 			if (!this.invoice_doc.payments) {
 				this.invoice_doc.payments = [];
 			}
 
-			// Add default payment methods from POS profile
 			if (this.pos_profile && this.pos_profile.payments) {
 				this.invoice_doc.payments = this.pos_profile.payments.map(payment => ({
 					...payment,
@@ -609,7 +604,6 @@ export default {
 				}));
 			}
 
-			// Set default payment to cash if available
 			const cashPayment = this.invoice_doc.payments.find(p => 
 				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
 			);
@@ -619,12 +613,9 @@ export default {
 				cashPayment.default = 1;
 			}
 
-			// Send the complete invoice document to payment component
 			this.eventBus.emit("send_invoice_doc_payment", this.invoice_doc);
 			
-			// Direct submission with cash payment and print
 			setTimeout(() => {
-				// Use the proper submission method that returns invoice name
 				frappe.call({
 					method: "posawesome.posawesome.api.invoices.submit_invoice",
 					args: {
@@ -640,16 +631,13 @@ export default {
 					},
 					callback: (r) => {
 						if (r.message && r.message.name) {
-							// Print the invoice with the correct name
 							this.printInvoiceByName(r.message.name);
 							
-							// Show success message
 							this.eventBus.emit("show_message", {
 								title: __("Invoice {0} submitted and printed", [r.message.name]),
 								color: "success",
 							});
 							
-							// Clear the invoice
 							this.eventBus.emit("clear_invoice");
 						} else {
 							this.eventBus.emit("show_message", {
@@ -679,18 +667,14 @@ export default {
 	// Method to edit price
 	editPrice() {
 		if (this.items && this.items.length > 0) {
-			// Get the last item (most recently added)
 			const lastItem = this.items[this.items.length - 1];
 			
-			// First, expand the last item if not already expanded
 			if (!this.expanded.includes(lastItem.posa_row_id)) {
 				this.expanded = [lastItem.posa_row_id];
 			}
 			
-			// Focus on the last item's price field after a delay to ensure expansion
 			this.$nextTick(() => {
 				setTimeout(() => {
-					// Look for the rate input field in the expanded item details
 					const priceInput = document.querySelector('#rate input, input[id="rate"]');
 					if (priceInput) {
 						priceInput.focus();
@@ -714,25 +698,21 @@ export default {
 	// Method to edit quantity - Show popup for first item
 	editQuantity() {
 		if (this.items && this.items.length > 0) {
-			// Get the first item
 			const firstItem = this.items[0];
 			
-			// Show a popup dialog to change quantity
 			frappe.prompt(__("Enter new quantity for {0}", [firstItem.item_name || firstItem.item_code]), 
 				({ value }) => {
 					const newQty = parseFloat(value);
 					if (!isNaN(newQty) && newQty > 0) {
-						// Update the item quantity
+
 						firstItem.qty = newQty;
 						firstItem.amount = (firstItem.rate || 0) * newQty;
 						firstItem.base_amount = firstItem.amount;
 						
-						// Trigger stock calculation if available
 						if (this.calcStockQty) {
 							this.calcStockQty(firstItem, newQty);
 						}
 						
-						// Force update to refresh the display
 						this.$forceUpdate();
 						
 						this.eventBus.emit("show_message", {
@@ -758,7 +738,6 @@ export default {
 		}
 	},
 
-	// Helper method to format date for backend (YYYY-MM-DD)
 	formatDateForBackend(date) {
 		if (!date) return null;
 		if (typeof date === "string") {

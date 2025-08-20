@@ -81,6 +81,7 @@
 							density="compact"
 							readonly
 							color="success"
+							class="total-field-bold"
 						/>
 					</v-col>
 				</v-row>
@@ -260,5 +261,20 @@ export default {
 /* ensure long button labels stay within the button */
 .summary-btn :deep(.v-btn__content) {
 	white-space: normal !important;
+}
+
+.total-field-bold :deep(.v-field__input) {
+	font-weight: 700 !important;
+	font-size: 1.2rem !important;
+}
+
+.total-field-bold :deep(.v-label) {
+	font-weight: 600 !important;
+	font-size: 1.1rem !important;
+}
+
+.total-field-bold :deep(.v-field__prefix) {
+	font-weight: 700 !important;
+	font-size: 1.2rem !important;
 }
 </style>
