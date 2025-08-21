@@ -14,7 +14,6 @@
 				color="info"
 			></v-progress-linear>
 			<div class="overflow-y-auto pa-2" style="max-height: 67vh">
-				<!-- Payment Summary (Paid, To Be Paid, Change) -->
 				<v-row v-if="invoice_doc" class="pa-1" dense>
 					<v-col cols="7">
 						<v-text-field
@@ -87,7 +86,6 @@
 
 				<v-divider></v-divider>
 
-				<!-- Payment Inputs (All Payment Methods) -->
 				<div v-if="is_cashback">
 					<v-row class="payments pa-1" v-for="payment in invoice_doc.payments" :key="payment.name">
 						<v-col cols="6" v-if="!is_mpesa_c2b_payment(payment)">
@@ -148,7 +146,6 @@
 					</v-row>
 				</div>
 
-				<!-- Loyalty Points Redemption -->
 				<v-row
 					class="payments pa-1"
 					v-if="invoice_doc && available_points_amount > 0 && !invoice_doc.is_return"
@@ -188,7 +185,6 @@
 
 				<v-divider></v-divider>
 
-				<!-- Invoice Totals (Net, Tax, Total, Discount, Grand, Rounded) -->
 				<v-row class="pa-1">
 					<v-col cols="6">
 						<v-text-field
@@ -297,7 +293,6 @@
 						></v-text-field>
 					</v-col>
 
-					<!-- Delivery Date and Address (if applicable) -->
 					<v-col cols="6" v-if="pos_profile.posa_allow_sales_order && invoiceType === 'Order'">
 						<VueDatePicker
 							v-model="new_delivery_date"
@@ -310,7 +305,6 @@
 							@update:model-value="update_delivery_date()"
 						/>
 					</v-col>
-					<!-- Shipping Address Selection (if delivery date is set) -->
 					<v-col cols="12" v-if="invoice_doc.posa_delivery_date">
 						<v-autocomplete
 							density="compact"
@@ -362,7 +356,6 @@
 						</v-autocomplete>
 					</v-col>
 
-					<!-- Additional Notes (if enabled in POS profile) -->
 					<v-col cols="12" v-if="pos_profile.posa_display_additional_notes">
 						<v-textarea
 							class="pa-0 dark-field sleek-field"

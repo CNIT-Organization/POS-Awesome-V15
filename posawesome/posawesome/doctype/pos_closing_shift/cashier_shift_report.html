@@ -378,10 +378,6 @@
         <div class="section-title">SHIFT INFO</div>
         <table class="summary-table">
             <tr>
-                <td class="summary-label">Total Quantity:</td>
-                <td class="summary-value">{{ closing_shift.total_quantity or 0 }}</td>
-            </tr>
-            <tr>
                 <td class="summary-label">Shift Period:</td>
                 <td class="summary-value small">{{ frappe.utils.format_datetime(closing_shift.period_start_date)[:16] }}</td>
             </tr>

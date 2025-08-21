@@ -118,29 +118,6 @@ class POSClosingShift(Document):
 		<div class="box">
 			<div class="grid-body">
 				<div class="rows text-center">
-					<!-- Sales summary section -->
-					<div>
-						<h6 class="text-center uppercase" style="color: #8D99A6">Sales Summary</h6>
-						<div class="tax-break-up" style="overflow-x: auto;">
-							<table class="table table-bordered table-hover">
-								<tbody>
-									<tr>
-										<td class="text-left font-bold">Grand Total</td>
-										<td class='text-right'> {frappe.utils.fmt_money(self.grand_total or '', currency=currency)}</td>
-									</tr>
-									<tr>
-										<td class="text-left font-bold">Net Total</td>
-										<td class='text-right'> {frappe.utils.fmt_money(self.net_total or '', currency=currency)}</td>
-									</tr>
-									<tr>
-										<td class="text-left font-bold">Total Quantity</td>
-										<td class='text-right'>{self.total_quantity or ''}</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-					
 					<!-- Mode of payment section -->
 					<div>
 						<h6 class="text-center uppercase" style="color: #8D99A6">Mode of Payments</h6>
