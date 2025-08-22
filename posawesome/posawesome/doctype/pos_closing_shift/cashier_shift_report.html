@@ -228,6 +228,22 @@
             width: 30%;
             text-align: right;
         }
+        
+        /* Sales Returns specific styling */
+        .returns-row {
+            border-bottom: 1px dotted #d32f2f;
+            background-color: #ffebee;
+        }
+        
+        .returns-amount {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        
+        .returns-section {
+            border-left: 3px solid #d32f2f;
+            padding-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -333,6 +349,25 @@
 
     <div class="divider"></div>
 
+    <!-- Sales Returns Section -->
+    {% if returns_count > 0 %}
+    <div class="section returns-section">
+        <div class="section-title">SALES RETURNS</div>
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Returns Total:</td>
+                <td class="summary-value returns-amount">{{ frappe.utils.fmt_money(returns_total, currency=currency) }}</td>
+            </tr>
+            <tr>
+                <td class="summary-label">Returns Count:</td>
+                <td class="summary-value">{{ returns_count }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+    {% endif %}
+
     <!-- Payment Modes Section -->
     <div class="section">
         <div class="section-title">PAYMENT MODES</div>
@@ -358,6 +393,14 @@
                     <td class="payment-type">Credit Sale</td>
                     <td class="payment-amount">
                         {{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
+                {% if returns_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Sales Returns</td>
+                    <td class="payment-amount" style="color: #d32f2f;">
+                        -{{ frappe.utils.fmt_money(returns_total, currency=currency) }}
                     </td>
                 </tr>
                 {% endif %}
@@ -418,6 +461,44 @@
                     <td class="item-amount">
                         <strong>
                             {{ frappe.utils.fmt_money(unpaid_invoices | sum(attribute='outstanding_amount'), currency=currency) }}
+                        </strong>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Sales Returns Details Section -->
+    {% if returns_count > 0 %}
+    <div class="section returns-section">
+        <div class="section-title">SALES RETURNS DETAILS</div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="item-name">Return Invoice</th>
+                    <th class="item-qty">Customer</th>
+                    <th class="item-amount">Return Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for return_inv in returns_list %}
+                <tr class="item-row returns-row">
+                    <td class="item-name">{{ return_inv.name[:15] }}{% if return_inv.name|length > 15 %}...{% endif %}</td>
+                    <td class="item-qty">{{ return_inv.customer[:8] }}{% if return_inv.customer|length > 8 %}...{% endif %}</td>
+                    <td class="item-amount returns-amount">
+                        {{ frappe.utils.fmt_money(return_inv.grand_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td class="item-name"><strong>TOTAL RETURNS:</strong></td>
+                    <td class="item-qty"><strong>{{ returns_count }}</strong></td>
+                    <td class="item-amount">
+                        <strong class="returns-amount">
+                            {{ frappe.utils.fmt_money(returns_total, currency=currency) }}
                         </strong>
                     </td>
                 </tr>

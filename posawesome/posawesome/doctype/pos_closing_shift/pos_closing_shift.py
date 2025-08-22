@@ -638,6 +638,9 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
+	# Get sales returns for this shift
+	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
+	
 	# Prepare data for template
 	report_data = {
 		"closing_shift": closing_shift_doc,
@@ -647,9 +650,14 @@ def print_cashier_shift_report(closing_shift_name):
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
 		"petty_cash_data": petty_cash_data,
+		"sales_returns_data": sales_returns_data,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
-		"report_time": frappe.utils.nowtime()
+		"report_time": frappe.utils.nowtime(),
+		# Sales returns simplified variables
+		"returns_total": sales_returns_data.get('returns_total', 0),
+		"returns_count": sales_returns_data.get('returns_count', 0),
+		"returns_list": sales_returns_data.get('returns', [])
 	}
 	
 	# Generate HTML content
@@ -708,6 +716,9 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
+	# Get sales returns for this shift
+	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
+	
 	# Calculate all totals in Python
 	# Opening balance should only include cash (not Knet or other payment methods)
 	opening_cash_balance = 0
@@ -737,8 +748,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Calculate grand total
 	grand_total = cash_sales_total + credit_sales_total
 	
-	# Calculate total amount (payments + credit sales)
-	total_amount = total_payments + credit_sales_total
+	# Calculate total amount (payments + credit sales - sales returns)
+	total_amount = total_payments + credit_sales_total - sales_returns_data.get('returns_total', 0)
 	
 	# Calculate expected cash in drawer (opening cash + cash sales + pay in - pay out)
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
@@ -757,6 +768,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
 		"petty_cash_data": petty_cash_data,
+		"sales_returns_data": sales_returns_data,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
@@ -774,7 +786,11 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"cash_closing_amount": cash_closing_amount,
 		"pay_in_amount": pay_in_amount,
 		"pay_out_amount": pay_out_amount,
-		"petty_cash_data": petty_cash_data
+		"petty_cash_data": petty_cash_data,
+		# Sales returns calculated values
+		"returns_total": sales_returns_data.get('returns_total', 0),
+		"returns_count": sales_returns_data.get('returns_count', 0),
+		"returns_list": sales_returns_data.get('returns', [])
 	}
 	
 	# Generate HTML content
@@ -849,28 +865,99 @@ def create_and_submit_petty_cash_entry(entry_data):
 @frappe.whitelist()
 def get_petty_cash_entries_for_shift(pos_opening_shift):
 	"""
-	Get all petty cash entries for a specific POS opening shift
+	Get petty cash entries for a specific POS shift
 	"""
-	petty_cash_entries = frappe.get_all(
-		"Petty Cash",
-		filters={
-			"pos_shift": pos_opening_shift,
-			"docstatus": 1  # Only submitted entries
-		},
-		fields=["entry_type", "amount", "note", "date", "creation"],
-		order_by="creation asc"
-	)
-	
-	# Calculate totals
-	pay_in_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay In")
-	pay_out_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay Out")
-	
-	return {
-		"entries": petty_cash_entries,
-		"pay_in_total": pay_in_total,
-		"pay_out_total": pay_out_total,
-		"net_petty_cash": pay_in_total - pay_out_total
-	}
+	try:
+		# Get petty cash entries for the shift period
+		petty_cash_entries = frappe.get_all(
+			"POS Petty Cash Entry",
+			filters={
+				"pos_shift": pos_opening_shift,
+				"docstatus": 1  # Submitted entries only
+			},
+			fields=["entry_type", "amount", "note", "date"]
+		)
+		
+		# Calculate totals
+		pay_in_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay In")
+		pay_out_total = sum(entry.amount for entry in petty_cash_entries if entry.entry_type == "Pay Out")
+		
+		return {
+			"entries": petty_cash_entries,
+			"pay_in_total": pay_in_total,
+			"pay_out_total": pay_out_total,
+			"total_entries": len(petty_cash_entries)
+		}
+	except Exception as e:
+		frappe.logger().error(f"Error getting petty cash entries: {str(e)}")
+		return {
+			"entries": [],
+			"pay_in_total": 0,
+			"pay_out_total": 0,
+			"total_entries": 0
+		}
+
+
+def get_sales_returns_for_shift(pos_opening_shift):
+	"""
+	Get sales returns for a specific POS shift period
+	"""
+	try:
+		# Get the shift period
+		shift_doc = frappe.get_doc("POS Opening Shift", pos_opening_shift)
+		start_datetime = shift_doc.period_start_date
+		end_datetime = shift_doc.period_end_date or frappe.utils.now()
+		
+		# Get sales returns (invoices with is_return = 1) during the shift period
+		sales_returns = frappe.get_all(
+			"Sales Invoice",
+			filters={
+				"is_return": 1,
+				"is_pos": 1,
+				"posting_date": [">=", start_datetime.date()],
+				"posting_date": ["<=", end_datetime.date()],
+				"docstatus": 1,  # Submitted returns only
+				"owner": shift_doc.user  # Only returns by this cashier
+			},
+			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "total_taxes_and_charges"]
+		)
+		
+		# Calculate totals
+		returns_total = sum(flt(return_inv.grand_total) for return_inv in sales_returns)
+		returns_count = len(sales_returns)
+		
+		# Group by customer for summary
+		customer_returns = {}
+		for return_inv in sales_returns:
+			customer = return_inv.customer
+			if customer not in customer_returns:
+				customer_returns[customer] = {
+					"count": 0,
+					"total": 0,
+					"invoices": []
+				}
+			customer_returns[customer]["count"] += 1
+			customer_returns[customer]["total"] += flt(return_inv.grand_total)
+			customer_returns[customer]["invoices"].append(return_inv)
+		
+		return {
+			"returns": sales_returns,
+			"returns_total": returns_total,
+			"returns_count": returns_count,
+			"customer_returns": customer_returns,
+			"start_date": start_datetime.date(),
+			"end_date": end_datetime.date()
+		}
+	except Exception as e:
+		frappe.logger().error(f"Error getting sales returns: {str(e)}")
+		return {
+			"returns": [],
+			"returns_total": 0,
+			"returns_count": 0,
+			"customer_returns": {},
+			"start_date": None,
+			"end_date": None
+		}
 
 
 def get_items_sold_during_shift(pos_opening_shift):
@@ -950,6 +1037,9 @@ def test_cashier_shift_report():
 		# Get petty cash entries for this shift
 		petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 		
+		# Get sales returns for this shift
+		sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
+		
 		# Prepare data for template
 		report_data = {
 			"closing_shift": closing_shift_doc,
@@ -959,9 +1049,14 @@ def test_cashier_shift_report():
 			"items_sold": items_sold,
 			"unpaid_invoices": unpaid_invoices,
 			"petty_cash_data": petty_cash_data,
+			"sales_returns_data": sales_returns_data,
 			"currency": company.default_currency,
 			"report_date": frappe.utils.nowdate(),
-			"report_time": frappe.utils.nowtime()
+			"report_time": frappe.utils.nowtime(),
+			# Sales returns simplified variables
+			"returns_total": sales_returns_data.get('returns_total', 0),
+			"returns_count": sales_returns_data.get('returns_count', 0),
+			"returns_list": sales_returns_data.get('returns', [])
 		}
 	else:
 		# Fallback to sample data if no closing shift exists
@@ -984,6 +1079,17 @@ def test_cashier_shift_report():
 				"pay_out_total": 0,
 				"net_petty_cash": 0
 			},
+			"sales_returns_data": {
+				"returns": [],
+				"returns_total": 0,
+				"returns_count": 0,
+				"customer_returns": {},
+				"start_date": None,
+				"end_date": None
+			},
+			"returns_total": 0,
+			"returns_count": 0,
+			"returns_list": [],
 			"currency": frappe.defaults.get_global_default("currency"),
 			"report_date": frappe.utils.nowdate(),
 			"report_time": frappe.utils.nowtime()

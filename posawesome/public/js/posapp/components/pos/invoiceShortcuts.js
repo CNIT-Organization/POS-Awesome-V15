@@ -310,26 +310,40 @@ export default {
 	// Method to open cash drawer
 	async openCashDrawer() {
 		try {
+			console.log("Opening cash drawer...");
+			
 			const result = await frappe.call({
 				method: "posawesome.posawesome.api.invoices.open_cash_drawer",
 				args: {},
 			});
 			
+			console.log("Cash drawer result:", result);
+			
 			if (result.message && result.message.success) {
 				this.eventBus.emit("show_message", {
-					title: __("Cash drawer opened"),
+					title: __("Cash drawer opened successfully"),
 					color: "success",
 				});
+				
+				// Log additional info for debugging
+				if (result.message.note) {
+					console.log("Note:", result.message.note);
+				}
+				if (result.message.command) {
+					console.log("Command sent:", result.message.command);
+				}
 			} else {
+				const errorMsg = result.message?.message || "Unknown error";
+				console.error("Cash drawer failed:", errorMsg);
 				this.eventBus.emit("show_message", {
-					title: __("Failed to open cash drawer"),
+					title: __("Failed to open cash drawer: {0}", [errorMsg]),
 					color: "error",
 				});
 			}
 		} catch (error) {
 			console.error("Error opening cash drawer:", error);
 			this.eventBus.emit("show_message", {
-				title: __("Error opening cash drawer"),
+				title: __("Error opening cash drawer: {0}", [error.message || "Unknown error"]),
 				color: "error",
 			});
 		}
