@@ -570,6 +570,9 @@ export default {
 				return sum + (item.amount || (item.rate * item.qty) || 0);
 			}, 0);
 
+			// Always use rounded amount for payment to avoid partial payments due to precision
+			const roundedTotal = this.flt(totalAmount, this.currency_precision);
+
 			// Ensure invoice_doc exists and has proper structure
 			if (!this.invoice_doc) {
 				this.invoice_doc = {};
@@ -585,11 +588,11 @@ export default {
 			this.invoice_doc.grand_total = totalAmount;
 			this.invoice_doc.total = totalAmount;
 			this.invoice_doc.net_total = totalAmount;
-			this.invoice_doc.rounded_total = totalAmount;
+			this.invoice_doc.rounded_total = roundedTotal;
 			this.invoice_doc.base_grand_total = totalAmount;
 			this.invoice_doc.base_total = totalAmount;
 			this.invoice_doc.base_net_total = totalAmount;
-			this.invoice_doc.base_rounded_total = totalAmount;
+			this.invoice_doc.base_rounded_total = roundedTotal;
 			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
 			this.invoice_doc.company = this.pos_profile?.company || "Yes Fresh";
 			this.invoice_doc.conversion_rate = 1;
@@ -622,8 +625,8 @@ export default {
 				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
 			);
 			if (cashPayment) {
-				cashPayment.amount = totalAmount;
-				cashPayment.base_amount = totalAmount;
+				cashPayment.amount = roundedTotal;
+				cashPayment.base_amount = roundedTotal;
 				cashPayment.default = 1;
 			}
 
