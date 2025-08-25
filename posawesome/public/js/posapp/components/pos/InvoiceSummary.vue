@@ -163,7 +163,19 @@
 						</v-btn>
 					</v-col>
 
-					<v-col cols="12">
+					<v-col cols="6">
+						<v-btn
+							block
+							color="secondary"
+							theme="dark"
+							prepend-icon="mdi-cash-register"
+							@click="$emit('open-cash-drawer')"
+							class="summary-btn"
+						>
+							{{ __("Open Cash Drawer") }}
+						</v-btn>
+					</v-col>
+					<v-col cols="6">
 						<v-btn
 							block
 							color="success"
@@ -198,6 +210,7 @@ export default {
 		discount_percentage_offer_name: [String, Number],
 		isNumber: Function,
 	},
+
 	emits: [
 		"update:additional_discount",
 		"update:additional_discount_percentage",
@@ -209,6 +222,7 @@ export default {
 		"open-returns",
 		"print-draft",
 		"show-payment",
+		"open-cash-drawer",
 	],
 	computed: {
 		isDarkTheme() {

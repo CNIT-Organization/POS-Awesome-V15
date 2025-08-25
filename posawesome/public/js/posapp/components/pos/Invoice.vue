@@ -238,6 +238,7 @@
 			@cancel-sale="cancel_dialog = true"
 			@open-returns="open_returns"
 			@print-draft="print_draft_invoice"
+			@open-cash-drawer="openCashDrawer"
 			@show-payment="show_payment"
 		/>
 	</div>
