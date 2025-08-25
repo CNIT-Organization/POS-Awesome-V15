@@ -751,10 +751,10 @@ export default {
 				}
 			}
 
-
-
-			console.log("Total payments calculated:", this.flt(total, this.currency_precision));
-			return this.flt(total, this.currency_precision);
+			// Don't round the total payments to avoid precision issues with F4 payments
+			// The payment amounts are already set to exact values by F4 function
+			console.log("Total payments calculated:", total);
+			return total;
 		},
 
 		diff_payment() {
@@ -1421,9 +1421,14 @@ export default {
 				invoiceTotal = this.invoice_doc.rounded_total;
 			}
 			
+			console.log("F4 - Grand Total:", this.invoice_doc.grand_total);
+			console.log("F4 - Rounded Total:", this.invoice_doc.rounded_total);
+			console.log("F4 - Using invoiceTotal:", invoiceTotal);
+			
 			// Set cash payment to the exact total amount
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
+					console.log("F4 - Setting cash payment from", payment.amount, "to", invoiceTotal);
 					payment.amount = invoiceTotal;
 					payment.base_amount = invoiceTotal;
 				} else {
@@ -1431,6 +1436,9 @@ export default {
 					payment.base_amount = 0;
 				}
 			});
+
+			console.log("F4 - Total payments after setting:", this.total_payments);
+			console.log("F4 - Diff payment after setting:", this.diff_payment);
 
 			// Update the display
 			this.$forceUpdate();
