@@ -1453,7 +1453,10 @@ export default {
 				return;
 			}
 
-			const totalAmount = this.invoice_doc.grand_total || this.invoice_doc.rounded_total || 0;
+			// Always prefer paying the rounded_total if present to avoid residual outstanding
+			const totalAmount = (this.invoice_doc.rounded_total != null && this.invoice_doc.rounded_total !== undefined)
+				? this.invoice_doc.rounded_total
+				: (this.invoice_doc.grand_total || 0);
 			
 			// Set cash payment to full amount
 			this.invoice_doc.payments.forEach((payment) => {
