@@ -1082,12 +1082,22 @@ export default {
 				}
 			}
 			// Validate partial payments only if not credit sale and invoice total is not zero
+			// Add tolerance for floating point precision issues (0.0001 tolerance)
+			const invoiceTotal = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
+			const tolerance = 0.0001; // Very small tolerance for floating point precision
+			const isPaymentComplete = this.total_payments >= (invoiceTotal - tolerance);
+			
 			if (
 				!is_credit_sale_mode &&
 				!this.pos_profile.posa_allow_partial_payment &&
-				this.total_payments < (this.invoice_doc.rounded_total || this.invoice_doc.grand_total) &&
-				(this.invoice_doc.rounded_total || this.invoice_doc.grand_total) > 0
+				!isPaymentComplete &&
+				invoiceTotal > 0
 			) {
+				console.log("Payment validation - Total payments:", this.total_payments);
+				console.log("Payment validation - Invoice total:", invoiceTotal);
+				console.log("Payment validation - Difference:", invoiceTotal - this.total_payments);
+				console.log("Payment validation - Tolerance:", tolerance);
+				
 				this.eventBus.emit("show_message", {
 					title: `The amount paid is not complete`,
 					color: "error",
@@ -1453,16 +1463,25 @@ export default {
 				return;
 			}
 
-			// Always prefer paying the rounded_total if present to avoid residual outstanding
-			const totalAmount = (this.invoice_doc.rounded_total != null && this.invoice_doc.rounded_total !== undefined)
-				? this.invoice_doc.rounded_total
-				: (this.invoice_doc.grand_total || 0);
+			// Get the invoice total and ensure it's properly rounded
+			let invoiceTotal = this.invoice_doc.rounded_total || this.invoice_doc.grand_total || 0;
 			
-			// Set cash payment to full amount
+			// Round to currency precision to avoid floating point issues
+			invoiceTotal = this.flt(invoiceTotal, this.currency_precision);
+			
+			// Update the invoice document with the rounded total
+			this.invoice_doc.rounded_total = invoiceTotal;
+			this.invoice_doc.grand_total = invoiceTotal;
+			
+			console.log("F4 - Original total:", this.invoice_doc.grand_total);
+			console.log("F4 - Rounded total:", invoiceTotal);
+			console.log("F4 - Currency precision:", this.currency_precision);
+			
+			// Set cash payment to the rounded amount
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
-					payment.amount = totalAmount;
-					payment.base_amount = totalAmount;
+					payment.amount = invoiceTotal;
+					payment.base_amount = invoiceTotal;
 				} else {
 					payment.amount = 0;
 					payment.base_amount = 0;

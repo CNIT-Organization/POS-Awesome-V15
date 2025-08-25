@@ -79,13 +79,7 @@ export default {
 		}
 	},
 
-	shortOpenCashDrawer(e) {
-		if (e.key === "Home") {
-			e.preventDefault();
-			e.stopPropagation();
-			this.openCashDrawer();
-		}
-	},
+
 
 	shortRecallTodaysInvoices(e) {
 		if (e.key === "End") {
@@ -134,7 +128,6 @@ export default {
 				shortcuts: [
 					{ key: "F1", description: "Show this shortcuts help dialog" },
 					{ key: "F4", description: "Quick cash payment → submit → print" },
-					{ key: "Home", description: "Open cash drawer" },
 					{ key: "End", description: "Recall today's invoices with Return/Print options" }
 				]
 			},
@@ -142,7 +135,7 @@ export default {
 				category: "📝 Item Management",
 				shortcuts: [
 					{ key: "/", description: "Edit price of first item" },
-					{ key: ".", description: "Edit quantity of first item (popup)" },
+					{ key: "F5", description: "Edit quantity of first item (popup)" },
 					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
 					{ key: "Ctrl+D", description: "Delete first item from invoice" }
 				]
@@ -236,7 +229,7 @@ export default {
 			{ key: "Home", description: "Open cash drawer" },
 			{ key: "End", description: "Recall today's invoices" },
 			{ key: "/", description: "Edit price of first item" },
-			{ key: ".", description: "Edit quantity of first item" },
+			{ key: "F5", description: "Edit quantity of first item" },
 			{ key: "Ctrl+A", description: "Toggle first item details" },
 			{ key: "Ctrl+D", description: "Delete first item" },
 			{ key: "Ctrl+S", description: "Open payment dialog" },
@@ -293,45 +286,7 @@ export default {
 		printWindow.print();
 	},
 
-	async openCashDrawer() {
-		try {
-			console.log("Opening cash drawer...");
-			
-			const result = await frappe.call({
-				method: "posawesome.posawesome.api.invoices.open_cash_drawer",
-				args: {},
-			});
-			
-			console.log("Cash drawer result:", result);
-			
-			if (result.message && result.message.success) {
-				this.eventBus.emit("show_message", {
-					title: __("Cash drawer opened successfully"),
-					color: "success",
-				});
-				
-				if (result.message.note) {
-					console.log("Note:", result.message.note);
-				}
-				if (result.message.command) {
-					console.log("Command sent:", result.message.command);
-				}
-			} else {
-				const errorMsg = result.message?.message || "Unknown error";
-				console.error("Cash drawer failed:", errorMsg);
-				this.eventBus.emit("show_message", {
-					title: __("Failed to open cash drawer: {0}", [errorMsg]),
-					color: "error",
-				});
-			}
-		} catch (error) {
-			console.error("Error opening cash drawer:", error);
-			this.eventBus.emit("show_message", {
-				title: __("Error opening cash drawer: {0}", [error.message || "Unknown error"]),
-				color: "error",
-			});
-		}
-	},
+
 
 	async recallTodaysInvoices() {
 		try {

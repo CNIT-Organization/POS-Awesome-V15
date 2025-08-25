@@ -238,7 +238,7 @@
 			@cancel-sale="cancel_dialog = true"
 			@open-returns="open_returns"
 			@print-draft="print_draft_invoice"
-			@open-cash-drawer="openCashDrawer"
+
 			@show-payment="show_payment"
 		/>
 	</div>
@@ -1189,7 +1189,7 @@ export default {
 		document.addEventListener("keydown", this.shortDeleteFirstItem.bind(this));
 		document.addEventListener("keydown", this.shortOpenFirstItem.bind(this));
 		document.addEventListener("keydown", this.shortSelectDiscount.bind(this));
-		document.addEventListener("keydown", this.shortOpenCashDrawer.bind(this));
+
 		document.addEventListener("keydown", this.shortRecallTodaysInvoices.bind(this));
 		document.addEventListener("keydown", this.shortCashPaymentAndPrint.bind(this));
 		document.addEventListener("keydown", this.shortEditPrice.bind(this));
@@ -1202,7 +1202,7 @@ export default {
 		document.removeEventListener("keydown", this.shortDeleteFirstItem);
 		document.removeEventListener("keydown", this.shortOpenFirstItem);
 		document.removeEventListener("keydown", this.shortSelectDiscount);
-		document.removeEventListener("keydown", this.shortOpenCashDrawer);
+
 		document.removeEventListener("keydown", this.shortRecallTodaysInvoices);
 		document.removeEventListener("keydown", this.shortCashPaymentAndPrint);
 		document.removeEventListener("keydown", this.shortEditPrice);

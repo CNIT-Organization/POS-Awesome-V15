@@ -11,7 +11,6 @@
 			@show-petty-cash-pay-in="showPettyCashPayIn = true"
 			@show-petty-cash-pay-out="showPettyCashPayOut = true"
 			@open-cash-drawer="openCashDrawerFromNavbar"
-			@print-empty-receipt="printEmptyReceipt"
 		>
 			<!-- Slot for status indicator -->
 			<template #status-indicator>
@@ -346,14 +345,6 @@ export default {
 			} catch (error) {
 				this.showMessage({ title: this.__("Error opening cash drawer"), color: "error" });
 			}
-		},
-		printEmptyReceipt() {
-			const printWindow = window.open("", "_blank");
-			const html = `<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:Arial;margin:0;padding:16px}@media print{@page{size:auto;margin:5mm}}</style></head><body></body></html>`;
-			printWindow.document.write(html);
-			printWindow.document.close();
-			printWindow.focus();
-			printWindow.print();
 		},
 		syncPendingInvoices() {
 			this.$emit("sync-invoices");
