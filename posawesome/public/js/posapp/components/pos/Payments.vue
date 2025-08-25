@@ -1411,16 +1411,17 @@ export default {
 				return;
 			}
 
-			// Always use rounded_total if it exists, otherwise use grand_total
-			let invoiceTotal = this.invoice_doc.rounded_total || this.invoice_doc.grand_total || 0;
+			// ALWAYS use rounded_total if it exists and is different from grand_total
+			let invoiceTotal = this.invoice_doc.grand_total || 0;
 			
-			// Ensure we're using the exact rounded_total value, not recalculating it
-			if (this.invoice_doc.rounded_total && this.invoice_doc.rounded_total !== this.invoice_doc.grand_total) {
+			// If rounded_total exists and is different from grand_total, use rounded_total
+			if (this.invoice_doc.rounded_total !== null && 
+				this.invoice_doc.rounded_total !== undefined && 
+				this.invoice_doc.rounded_total !== this.invoice_doc.grand_total) {
 				invoiceTotal = this.invoice_doc.rounded_total;
 			}
 			
-			
-			// Set cash payment to the exact rounded total amount
+			// Set cash payment to the exact total amount
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
 					payment.amount = invoiceTotal;
