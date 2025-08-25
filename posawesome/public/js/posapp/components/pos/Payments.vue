@@ -757,28 +757,21 @@ export default {
 			return this.flt(total, this.currency_precision);
 		},
 
-		// Calculate difference between invoice total and payments
 		diff_payment() {
 			if (!this.invoice_doc) return 0;
 
-			// For multi-currency, use grand_total instead of rounded_total
 			let invoice_total;
 			if (
 				this.pos_profile.posa_allow_multi_currency &&
 				this.invoice_doc.currency !== this.pos_profile.currency
 			) {
-				invoice_total = this.flt(this.invoice_doc.grand_total, this.currency_precision);
+				invoice_total = this.invoice_doc.grand_total;
 			} else {
-				invoice_total = this.flt(
-					this.invoice_doc.rounded_total || this.invoice_doc.grand_total,
-					this.currency_precision,
-				);
+				invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
 			}
 
-			// Calculate difference (all amounts are in selected currency)
-			let diff = this.flt(invoice_total - this.total_payments, this.currency_precision);
+			let diff = invoice_total - this.total_payments;
 
-			// For returns, ensure difference is not negative
 			if (this.invoice_doc.is_return) {
 				return diff >= 0 ? diff : 0;
 			}
@@ -788,51 +781,38 @@ export default {
 
 		// Calculate change to be given back to customer
 		credit_change() {
-			// For multi-currency, use grand_total instead of rounded_total
 			let invoice_total;
 			if (
 				this.pos_profile.posa_allow_multi_currency &&
 				this.invoice_doc.currency !== this.pos_profile.currency
 			) {
-				invoice_total = this.flt(this.invoice_doc.grand_total, this.currency_precision);
+				invoice_total = this.invoice_doc.grand_total;
 			} else {
-				invoice_total = this.flt(
-					this.invoice_doc.rounded_total || this.invoice_doc.grand_total,
-					this.currency_precision,
-				);
+				invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
 			}
 
-			// Calculate change (all amounts are in selected currency)
-			let change = this.flt(this.total_payments - invoice_total, this.currency_precision);
+			let change = this.total_payments - invoice_total;
 
-			// Ensure change is not negative
 			return change > 0 ? change : 0;
 		},
 
-		// Label for the difference field (To Be Paid/Change)
 		diff_label() {
 			return this.diff_payment > 0
 				? `To Be Paid (${this.displayCurrency})`
 				: `Change (${this.displayCurrency})`;
 		},
-		// Display formatted total payments
 		total_payments_display() {
 			return this.formatCurrency(this.total_payments, this.displayCurrency);
 		},
-		// Display formatted difference payment
 		diff_payment_display() {
 			return this.formatCurrency(this.diff_payment, this.displayCurrency);
 		},
-		// Calculate available loyalty points amount in selected currency
 		available_points_amount() {
 			let amount = 0;
 			if (this.customer_info.loyalty_points) {
-				// Convert loyalty points to amount in base currency (PKR)
 				amount = this.customer_info.loyalty_points * this.customer_info.conversion_factor;
 
-				// Convert to selected currency if needed
 				if (this.invoice_doc.currency !== this.pos_profile.currency) {
-					// Convert PKR to USD by dividing
 					amount = this.flt(
 						amount / (this.invoice_doc.conversion_rate || 1),
 						this.currency_precision,
@@ -842,7 +822,6 @@ export default {
 			return amount;
 		},
 
-		// Validate if payment can be submitted
 		vaildatPayment() {
 			if (this.pos_profile.posa_allow_sales_order) {
 				if (this.invoiceType === "Order" && !this.invoice_doc.posa_delivery_date) {
@@ -851,7 +830,6 @@ export default {
 			}
 			return false;
 		},
-		// Should request payment field be shown?
 		request_payment_field() {
 			return (
 				this.pos_settings?.invoice_fields?.some(
@@ -864,13 +842,11 @@ export default {
 		},
 	},
 	watch: {
-		// Watch diff_payment to update paid_change
 		diff_payment(newVal) {
 			if (!this.is_user_editing_paid_change) {
 				this.paid_change = -newVal;
 			}
 		},
-		// Watch paid_change to validate and update credit_change
 		paid_change(newVal) {
 			const changeLimit = -this.diff_payment;
 			if (newVal > changeLimit) {
@@ -882,7 +858,6 @@ export default {
 				this.credit_change = this.flt(newVal - changeLimit, this.currency_precision);
 			}
 		},
-		// Watch loyalty_amount to handle loyalty points redemption
 		loyalty_amount(value) {
 			if (value > this.available_points_amount) {
 				this.invoice_doc.loyalty_amount = 0;
@@ -901,7 +876,6 @@ export default {
 			}
 		},
 
-		// Watch sales_person to update sales_team
 		sales_person(newVal) {
 			if (newVal) {
 				this.invoice_doc.sales_team = [
@@ -916,39 +890,31 @@ export default {
 				console.log("Cleared sales_team");
 			}
 		},
-		// Watch is_credit_sale to reset cash payments
 		is_credit_sale(newVal) {
 			console.log("is_credit_sale watcher triggered:", newVal);
 			if (newVal) {
-				// If credit sale is enabled, set all payment amounts to 0
 				this.invoice_doc.payments.forEach((payment) => {
 					payment.amount = 0;
 					if (payment.base_amount !== undefined) {
 						payment.base_amount = 0;
 					}
 				});
-				// Set credit sale flag on invoice
 				this.invoice_doc.is_credit_sale = true;
 				console.log("Credit sale enabled - all payments cleared");
 			} else {
-				// If credit sale is disabled, set cash payment to invoice total
 				this.invoice_doc.payments.forEach((payment) => {
 					if (payment.mode_of_payment.toLowerCase() === "cash") {
 						payment.amount = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
 					}
 				});
-				// Clear credit sale flag on invoice
 				this.invoice_doc.is_credit_sale = false;
 				console.log("Credit sale disabled - cash payment restored");
 			}
-			// Force update computed properties
 			this.$forceUpdate();
 		},
-		// Watch is_credit_return to toggle cashback payments
 		is_credit_return(newVal) {
 			if (newVal) {
 				this.is_cashback = false;
-				// Clear any payment amounts
 				this.invoice_doc.payments.forEach((payment) => {
 					payment.amount = 0;
 					if (payment.base_amount !== undefined) {
@@ -957,18 +923,15 @@ export default {
 				});
 			} else {
 				this.is_cashback = true;
-				// Ensure default negative payment for returns
 				this.ensureReturnPaymentsAreNegative();
 			}
 		},
 	},
 	methods: {
-		// Go back to invoice view and reset customer readonly
 		back_to_invoice() {
 			this.eventBus.emit("show_payment", "false");
 			this.eventBus.emit("set_customer_readonly", false);
 		},
-		// Reset all cash payments to zero
 		reset_cash_payments() {
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase() === "cash") {
@@ -976,19 +939,16 @@ export default {
 				}
 			});
 		},
-		// Ensure all payments are negative for return invoices
 		ensureReturnPaymentsAreNegative() {
 			if (!this.invoice_doc || !this.invoice_doc.is_return || !this.is_cashback) {
 				return;
 			}
-			// Check if any payment amount is set
 			let hasPaymentSet = false;
 			this.invoice_doc.payments.forEach((payment) => {
 				if (Math.abs(payment.amount) > 0) {
 					hasPaymentSet = true;
 				}
 			});
-			// If no payment set, set the default one
 			if (!hasPaymentSet) {
 				const default_payment = this.invoice_doc.payments.find((payment) => payment.default === 1);
 				if (default_payment) {
@@ -999,7 +959,6 @@ export default {
 					}
 				}
 			}
-			// Ensure all set payments are negative
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.amount > 0) {
 					payment.amount = -Math.abs(payment.amount);
@@ -1009,25 +968,14 @@ export default {
 				}
 			});
 		},
-		// Submit payment after validation
 		submit(event, payment_received = false, print = false) {
 			try {
-			// For return invoices, ensure payment amounts are negative
 			if (this.invoice_doc.is_return) {
 				this.ensureReturnPaymentsAreNegative();
 			}
 			
-			// Check if this is a credit sale (either from local flag or from closing dialog)
 			const is_credit_sale_mode = this.is_credit_sale || this.invoice_doc.is_credit_sale;
 			
-			// Debug logging
-			console.log("Submit validation - Credit sale mode:", is_credit_sale_mode);
-			console.log("Submit validation - Local is_credit_sale:", this.is_credit_sale);
-			console.log("Submit validation - Invoice is_credit_sale:", this.invoice_doc.is_credit_sale);
-			console.log("Submit validation - Total payments:", this.total_payments);
-			console.log("Submit validation - Invoice total:", this.invoice_doc.rounded_total || this.invoice_doc.grand_total);
-			
-			// Validate total payments only if not credit sale and invoice total is not zero
 			if (
 				!is_credit_sale_mode &&
 				!this.invoice_doc.is_return &&
@@ -1463,21 +1411,16 @@ export default {
 				return;
 			}
 
-			// Get the invoice total and ensure it's properly rounded
+			// Always use rounded_total if it exists, otherwise use grand_total
 			let invoiceTotal = this.invoice_doc.rounded_total || this.invoice_doc.grand_total || 0;
 			
-			// Round to currency precision to avoid floating point issues
-			invoiceTotal = this.flt(invoiceTotal, this.currency_precision);
+			// Ensure we're using the exact rounded_total value, not recalculating it
+			if (this.invoice_doc.rounded_total && this.invoice_doc.rounded_total !== this.invoice_doc.grand_total) {
+				invoiceTotal = this.invoice_doc.rounded_total;
+			}
 			
-			// Update the invoice document with the rounded total
-			this.invoice_doc.rounded_total = invoiceTotal;
-			this.invoice_doc.grand_total = invoiceTotal;
 			
-			console.log("F4 - Original total:", this.invoice_doc.grand_total);
-			console.log("F4 - Rounded total:", invoiceTotal);
-			console.log("F4 - Currency precision:", this.currency_precision);
-			
-			// Set cash payment to the rounded amount
+			// Set cash payment to the exact rounded total amount
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
 					payment.amount = invoiceTotal;
