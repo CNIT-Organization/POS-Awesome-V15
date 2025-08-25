@@ -733,7 +733,9 @@ export default {
 			if (this.invoice_doc && this.invoice_doc.payments) {
 				this.invoice_doc.payments.forEach((payment) => {
 					// Payment amount is already in selected currency
-					total += parseFloat(payment.amount) || 0;
+					let amount = parseFloat(payment.amount) || 0;
+					total += amount;
+					console.log("total_payments - payment amount:", payment.amount, "parsed as:", amount);
 				});
 			}
 
@@ -771,6 +773,10 @@ export default {
 			}
 
 			let diff = invoice_total - this.total_payments;
+
+			console.log("diff_payment - invoice_total:", invoice_total);
+			console.log("diff_payment - total_payments:", this.total_payments);
+			console.log("diff_payment - diff:", diff);
 
 			if (this.invoice_doc.is_return) {
 				return diff >= 0 ? diff : 0;
@@ -1429,16 +1435,23 @@ export default {
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
 					console.log("F4 - Setting cash payment from", payment.amount, "to", invoiceTotal);
-					payment.amount = invoiceTotal;
-					payment.base_amount = invoiceTotal;
+					payment.amount = parseFloat(invoiceTotal);
+					payment.base_amount = parseFloat(invoiceTotal);
 				} else {
 					payment.amount = 0;
 					payment.base_amount = 0;
 				}
 			});
 
+			// Also update the invoice document to ensure consistency
+			this.invoice_doc.grand_total = parseFloat(invoiceTotal);
+			this.invoice_doc.rounded_total = parseFloat(invoiceTotal);
+			this.invoice_doc.outstanding_amount = 0;
+
 			console.log("F4 - Total payments after setting:", this.total_payments);
 			console.log("F4 - Diff payment after setting:", this.diff_payment);
+			console.log("F4 - Invoice grand_total after setting:", this.invoice_doc.grand_total);
+			console.log("F4 - Invoice rounded_total after setting:", this.invoice_doc.rounded_total);
 
 			// Update the display
 			this.$forceUpdate();
