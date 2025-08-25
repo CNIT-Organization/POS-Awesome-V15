@@ -107,10 +107,7 @@ class POSClosingShift(Document):
 				{"data": self, "currency": currency},
 			)
 		except Exception as e:
-			# Fallback: return a simple HTML structure if template fails
-			frappe.logger().error(f"Template rendering failed: {str(e)}")
 			return self._generate_fallback_html(currency)
-	
 	def _generate_fallback_html(self, currency):
 		"""Generate fallback HTML if template fails to load"""
 		html = f"""
@@ -689,7 +686,6 @@ def print_cashier_shift_report(closing_shift_name):
 	print_url = f"{base_url}/printview?doctype=POS%20Closing%20Shift&name={closing_shift_name}&format={print_format_name}&trigger_print=1"
 	
 	# Log the print URL for debugging
-	frappe.logger().info(f"Cashier shift report print URL: {print_url}")
 	
 	# Return the print URL for frontend to handle
 	return print_url
@@ -855,7 +851,6 @@ def create_and_submit_petty_cash_entry(entry_data):
 		}
 		
 	except Exception as e:
-		frappe.logger().error(f"Failed to create petty cash entry: {str(e)}")
 		return {
 			"success": False,
 			"message": f"Failed to record petty cash entry: {str(e)}"
@@ -889,7 +884,6 @@ def get_petty_cash_entries_for_shift(pos_opening_shift):
 			"total_entries": len(petty_cash_entries)
 		}
 	except Exception as e:
-		frappe.logger().error(f"Error getting petty cash entries: {str(e)}")
 		return {
 			"entries": [],
 			"pay_in_total": 0,
@@ -903,12 +897,11 @@ def get_sales_returns_for_shift(pos_opening_shift):
 	Get sales returns for a specific POS shift period
 	"""
 	try:
-		# Get the shift period
 		shift_doc = frappe.get_doc("POS Opening Shift", pos_opening_shift)
 		start_datetime = shift_doc.period_start_date
 		end_datetime = shift_doc.period_end_date or frappe.utils.now()
 		
-		# Get sales returns (invoices with is_return = 1) during the shift period
+		# Get ALL returns for this shift period - comprehensive search
 		sales_returns = frappe.get_all(
 			"Sales Invoice",
 			filters={
@@ -916,19 +909,38 @@ def get_sales_returns_for_shift(pos_opening_shift):
 				"is_pos": 1,
 				"posting_date": [">=", start_datetime.date()],
 				"posting_date": ["<=", end_datetime.date()],
-				"docstatus": 1,  # Submitted returns only
-				"owner": shift_doc.user  # Only returns by this cashier
+				"docstatus": ["in", [0, 1, 2]],  # Draft, submitted, and cancelled returns
 			},
 			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "total_taxes_and_charges"]
 		)
 		
-		# Calculate totals
-		returns_total = sum(flt(return_inv.grand_total) for return_inv in sales_returns)
-		returns_count = len(sales_returns)
+		# Also get returns directly linked to this shift
+		shift_linked_returns = frappe.get_all(
+			"Sales Invoice",
+			filters={
+				"is_return": 1,
+				"is_pos": 1,
+				"posa_pos_opening_shift": pos_opening_shift,
+				"docstatus": ["in", [0, 1, 2]],  # Draft, submitted, and cancelled returns
+			},
+			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "total_taxes_and_charges"]
+		)
 		
-		# Group by customer for summary
+		# Combine and remove duplicates
+		all_returns = sales_returns + shift_linked_returns
+		unique_returns = []
+		seen_names = set()
+		
+		for return_inv in all_returns:
+			if return_inv.name not in seen_names:
+				unique_returns.append(return_inv)
+				seen_names.add(return_inv.name)
+		
+		returns_total = sum(flt(return_inv.grand_total) for return_inv in unique_returns)
+		returns_count = len(unique_returns)
+		
 		customer_returns = {}
-		for return_inv in sales_returns:
+		for return_inv in unique_returns:
 			customer = return_inv.customer
 			if customer not in customer_returns:
 				customer_returns[customer] = {
@@ -941,7 +953,7 @@ def get_sales_returns_for_shift(pos_opening_shift):
 			customer_returns[customer]["invoices"].append(return_inv)
 		
 		return {
-			"returns": sales_returns,
+			"returns": unique_returns,
 			"returns_total": returns_total,
 			"returns_count": returns_count,
 			"customer_returns": customer_returns,
@@ -949,7 +961,6 @@ def get_sales_returns_for_shift(pos_opening_shift):
 			"end_date": end_datetime.date()
 		}
 	except Exception as e:
-		frappe.logger().error(f"Error getting sales returns: {str(e)}")
 		return {
 			"returns": [],
 			"returns_total": 0,
@@ -964,12 +975,11 @@ def get_items_sold_during_shift(pos_opening_shift):
 	"""
 	Get items sold during the shift with quantities and amounts
 	"""
-	# Get all invoices for this shift
 	invoices = frappe.get_all(
 		"Sales Invoice",
 		filters={
 			"posa_pos_opening_shift": pos_opening_shift,
-			"docstatus": 1,  # Submitted invoices only
+			"docstatus": 1,
 		},
 		fields=["name"]
 	)
@@ -989,7 +999,6 @@ def get_items_sold_during_shift(pos_opening_shift):
 			items_summary[item_key]["qty"] += item.qty
 			items_summary[item_key]["amount"] += item.amount
 	
-	# Convert to list and sort by amount
 	items_list = []
 	for item_code, data in items_summary.items():
 		items_list.append({
@@ -999,7 +1008,6 @@ def get_items_sold_during_shift(pos_opening_shift):
 			"amount": data["amount"]
 		})
 	
-	# Sort by amount descending
 	items_list.sort(key=lambda x: x["amount"], reverse=True)
 	
 	return items_list
@@ -1010,7 +1018,6 @@ def test_cashier_shift_report():
 	"""
 	Test function to generate a sample cashier shift report
 	"""
-	# Get the latest closing shift for testing
 	latest_closing_shift = frappe.get_all(
 		"POS Closing Shift",
 		filters={"docstatus": 1},
@@ -1023,24 +1030,18 @@ def test_cashier_shift_report():
 		closing_shift_name = latest_closing_shift[0].name
 		closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
 		
-		# Get company and user details
 		company = frappe.get_doc("Company", closing_shift_doc.company)
 		user = frappe.get_doc("User", closing_shift_doc.user)
 		pos_profile = frappe.get_doc("POS Profile", closing_shift_doc.pos_profile)
 		
-		# Get items sold during the shift
 		items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 		
-		# Get unpaid invoices (credit sales) for this shift
 		unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 		
-		# Get petty cash entries for this shift
 		petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 		
-		# Get sales returns for this shift
 		sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
 		
-		# Prepare data for template
 		report_data = {
 			"closing_shift": closing_shift_doc,
 			"company": company,
@@ -1053,13 +1054,11 @@ def test_cashier_shift_report():
 			"currency": company.default_currency,
 			"report_date": frappe.utils.nowdate(),
 			"report_time": frappe.utils.nowtime(),
-			# Sales returns simplified variables
 			"returns_total": sales_returns_data.get('returns_total', 0),
 			"returns_count": sales_returns_data.get('returns_count', 0),
 			"returns_list": sales_returns_data.get('returns', [])
 		}
 	else:
-		# Fallback to sample data if no closing shift exists
 		report_data = {
 			"closing_shift": {
 				"name": "Sample Closing Shift",
@@ -1100,7 +1099,6 @@ def test_cashier_shift_report():
 		report_data
 	)
 	
-	# Create a test print format
 	print_format_name = "test_cashier_report"
 	
 	if not frappe.db.exists("Print Format", print_format_name):
@@ -1116,7 +1114,6 @@ def test_cashier_shift_report():
 		print_format.html = html_content
 		print_format.save(ignore_permissions=True)
 	
-	# Return the test print URL
 	base_url = frappe.utils.get_url()
 	print_url = f"{base_url}/printview?doctype=POS%20Closing%20Shift&name=test&format={print_format_name}&trigger_print=0"
 	
