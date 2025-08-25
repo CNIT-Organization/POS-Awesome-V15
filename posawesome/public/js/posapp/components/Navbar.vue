@@ -10,6 +10,8 @@
 			@show-offline-invoices="showOfflineInvoices = true"
 			@show-petty-cash-pay-in="showPettyCashPayIn = true"
 			@show-petty-cash-pay-out="showPettyCashPayOut = true"
+			@open-cash-drawer="openCashDrawerFromNavbar"
+			@print-empty-receipt="printEmptyReceipt"
 		>
 			<!-- Slot for status indicator -->
 			<template #status-indicator>
@@ -322,6 +324,36 @@ export default {
 		},
 		printLastInvoice() {
 			this.$emit("print-last-invoice");
+		},
+		async openCashDrawerFromNavbar() {
+			try {
+				const result = await frappe.call({
+					method: "posawesome.posawesome.api.invoices.open_cash_drawer",
+					args: {},
+				});
+				if (result.message && result.message.success) {
+					// Send the HTML content to printer to trigger cash drawer
+					const printWindow = window.open("", "_blank");
+					printWindow.document.write(result.message.html_content);
+					printWindow.document.close();
+					printWindow.focus();
+					printWindow.print();
+					
+					this.showMessage({ title: this.__("Cash drawer opened successfully"), color: "success" });
+				} else {
+					this.showMessage({ title: this.__("Failed to open cash drawer"), color: "error" });
+				}
+			} catch (error) {
+				this.showMessage({ title: this.__("Error opening cash drawer"), color: "error" });
+			}
+		},
+		printEmptyReceipt() {
+			const printWindow = window.open("", "_blank");
+			const html = `<!DOCTYPE html><html><head><title>Receipt</title><style>body{font-family:Arial;margin:0;padding:16px}@media print{@page{size:auto;margin:5mm}}</style></head><body></body></html>`;
+			printWindow.document.write(html);
+			printWindow.document.close();
+			printWindow.focus();
+			printWindow.print();
 		},
 		syncPendingInvoices() {
 			this.$emit("sync-invoices");

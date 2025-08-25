@@ -45,6 +45,32 @@
 			</v-tooltip>
 		</v-btn>
 
+		<!-- Open Cash Drawer Button -->
+		<v-btn
+			icon
+			color="primary"
+			class="mx-1 petty-cash-btn"
+			@click="$emit('open-cash-drawer')"
+		>
+			<v-icon>mdi-cash-register</v-icon>
+			<v-tooltip activator="parent" location="bottom">
+				{{ __("Open Cash Drawer") }}
+			</v-tooltip>
+		</v-btn>
+
+		<!-- Print Empty Receipt Button -->
+		<v-btn
+			icon
+			color="secondary"
+			class="mx-1 petty-cash-btn"
+			@click="$emit('print-empty-receipt')"
+		>
+			<v-icon>mdi-printer</v-icon>
+			<v-tooltip activator="parent" location="bottom">
+				{{ __("Print Empty Receipt") }}
+			</v-tooltip>
+		</v-btn>
+
 		<v-btn
 			icon
 			color="warning"
@@ -122,7 +148,7 @@ export default {
 			return "User";
 		},
 	},
-	emits: ["nav-click", "go-desk", "show-offline-invoices", "show-petty-cash-pay-in", "show-petty-cash-pay-out"],
+	emits: ["nav-click", "go-desk", "show-offline-invoices", "show-petty-cash-pay-in", "show-petty-cash-pay-out", "open-cash-drawer", "print-empty-receipt"],
 };
 </script>
 

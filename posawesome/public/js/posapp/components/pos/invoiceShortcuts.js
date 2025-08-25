@@ -13,17 +13,14 @@ export default {
 				const firstItem = this.items[0];
 				console.log("Processing first item:", firstItem.item_code);
 
-				// Check if first item is currently expanded using its ID
 				const isExpanded = this.expanded.includes(firstItem.posa_row_id);
 
-				// Toggle expanded state using item ID
 				if (isExpanded) {
 					console.log("Collapsing item:", firstItem.item_code);
 					this.expanded = [];
 				} else {
 					console.log("Expanding item:", firstItem.item_code);
 					this.expanded = [firstItem.posa_row_id];
-					// Update item details when expanding
 					this.$nextTick(() => {
 						this.update_item_detail(firstItem);
 					});
@@ -42,7 +39,6 @@ export default {
 		console.log("Expanded state updated:", newExpanded);
 		this.expanded = newExpanded;
 
-		// Update item details for newly expanded items
 		if (newExpanded && newExpanded.length > 0) {
 			const expandedItemId = newExpanded[0];
 			const expandedItem = this.items.find((item) => item.posa_row_id === expandedItemId);
@@ -54,7 +50,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: open payment dialog
 	shortOpenPayment(e) {
 		if (e.key === "s" && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
@@ -62,7 +57,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: delete first item from the invoice
 	shortDeleteFirstItem(e) {
 		if (e.key === "d" && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
@@ -85,7 +79,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: Home key - Open cash drawer
 	shortOpenCashDrawer(e) {
 		if (e.key === "Home") {
 			e.preventDefault();
@@ -94,7 +87,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: End key - Recall today's invoices
 	shortRecallTodaysInvoices(e) {
 		if (e.key === "End") {
 			e.preventDefault();
@@ -103,7 +95,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: F4 key - Cash payment and print
 	shortCashPaymentAndPrint(e) {
 		if (e.key === "F4") {
 			e.preventDefault();
@@ -112,7 +103,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: / key - Edit price
 	shortEditPrice(e) {
 		if (e.key === "/") {
 			e.preventDefault();
@@ -121,7 +111,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: . key - Edit quantity
 	shortEditQuantity(e) {
 		if (e.key === "F5") {
 			e.preventDefault();
@@ -130,7 +119,6 @@ export default {
 		}
 	},
 
-	// Keyboard shortcut: F1 key - Show all shortcuts help
 	shortShowShortcutsHelp(e) {
 		if (e.key === "F1") {
 			e.preventDefault();
@@ -139,7 +127,6 @@ export default {
 		}
 	},
 
-	// Method to show comprehensive shortcuts help dialog
 	showShortcutsHelp() {
 		const shortcuts = [
 			{
@@ -242,7 +229,6 @@ export default {
 		});
 	},
 
-	// Method to print shortcuts help
 	printShortcutsHelp() {
 		const shortcuts = [
 			{ key: "F1", description: "Show shortcuts help" },
@@ -307,7 +293,6 @@ export default {
 		printWindow.print();
 	},
 
-	// Method to open cash drawer
 	async openCashDrawer() {
 		try {
 			console.log("Opening cash drawer...");
@@ -325,7 +310,6 @@ export default {
 					color: "success",
 				});
 				
-				// Log additional info for debugging
 				if (result.message.note) {
 					console.log("Note:", result.message.note);
 				}
@@ -349,7 +333,6 @@ export default {
 		}
 	},
 
-	// Method to recall today's invoices
 	async recallTodaysInvoices() {
 		try {
 			if (!this.pos_profile || !this.pos_profile.company) {
@@ -369,7 +352,6 @@ export default {
 			});
 
 			if (result.message && result.message.length > 0) {
-				// Show a dialog to select which invoice to recall
 				this.showInvoiceSelectionDialog(result.message);
 			} else {
 				this.eventBus.emit("show_message", {
@@ -386,9 +368,7 @@ export default {
 		}
 	},
 
-	// Method to show invoice selection dialog
 	showInvoiceSelectionDialog(invoices) {
-		// Create a simple dialog to select an invoice
 		const dialog = frappe.msgprint({
 			title: __("Select Invoice to Recall"),
 			message: `
@@ -412,7 +392,6 @@ export default {
 			},
 		});
 
-		// Add global functions to recall and print invoice
 		window.recallInvoice = (invoiceName) => {
 			this.loadInvoiceByName(invoiceName);
 			dialog.hide();
@@ -423,7 +402,6 @@ export default {
 		};
 	},
 
-	// Method to load invoice by name
 	async loadInvoiceByName(invoiceName) {
 		try {
 			const result = await frappe.call({
@@ -435,7 +413,6 @@ export default {
 			});
 
 			if (result.message) {
-				// Load the invoice into the current session
 				this.load_invoice(result.message);
 				this.eventBus.emit("show_message", {
 					title: __("Invoice loaded successfully"),
@@ -451,7 +428,6 @@ export default {
 		}
 	},
 
-	// Method to print invoice by name
 	async printInvoiceByName(invoiceName) {
 		try {
 			const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
@@ -467,11 +443,9 @@ export default {
 				letter_head;
 
 			if (this.pos_profile.posa_silent_print) {
-				// Import silent print if available
 				import("../plugins/print.js").then(({ silentPrint }) => {
 					silentPrint(url);
 				}).catch(() => {
-					// Fallback to regular print
 					const printWindow = window.open(url, "Print");
 					printWindow.addEventListener(
 						"load",
@@ -505,10 +479,8 @@ export default {
 		}
 	},
 
-	// Method to handle cash payment and print - AUTO SUBMIT VERSION
 	async cashPaymentAndPrint() {
 		try {
-			// Basic validation
 			if (!this.items || this.items.length === 0) {
 				this.eventBus.emit("show_message", {
 					title: __("Please add items to the invoice first"),
@@ -565,20 +537,16 @@ export default {
 				return;
 			}
 
-			// Calculate total amount
 			const totalAmount = this.items.reduce((sum, item) => {
 				return sum + (item.amount || (item.rate * item.qty) || 0);
 			}, 0);
 
-			// Always use rounded amount for payment to avoid partial payments due to precision
 			const roundedTotal = this.flt(totalAmount, this.currency_precision);
 
-			// Ensure invoice_doc exists and has proper structure
 			if (!this.invoice_doc) {
 				this.invoice_doc = {};
 			}
 
-			// Set essential invoice data
 			this.invoice_doc.doctype = "Sales Invoice";
 			this.invoice_doc.customer = this.customer;
 			this.invoice_doc.items = this.items.map(item => ({
@@ -681,7 +649,6 @@ export default {
 		}
 	},
 
-	// Method to edit price
 	editPrice() {
 		if (this.items && this.items.length > 0) {
 			const lastItem = this.items[this.items.length - 1];
@@ -712,7 +679,6 @@ export default {
 		}
 	},
 
-	// Method to edit quantity - Show popup for first item
 	editQuantity() {
 		if (this.items && this.items.length > 0) {
 			const firstItem = this.items[0];
