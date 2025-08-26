@@ -762,19 +762,13 @@ export default {
 		diff_payment() {
 			if (!this.invoice_doc) return 0;
 
-			let invoice_total;
-			if (
-				this.pos_profile.posa_allow_multi_currency &&
-				this.invoice_doc.currency !== this.pos_profile.currency
-			) {
-				invoice_total = this.invoice_doc.grand_total;
-			} else {
-				invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
-			}
+			// Customer should only pay the grand_total, not the rounded_total
+			// The rounding adjustment should be handled by the system, not charged to customer
+			let invoice_total = this.invoice_doc.grand_total;
 
 			let diff = invoice_total - this.total_payments;
 
-			console.log("diff_payment - invoice_total:", invoice_total);
+			console.log("diff_payment - invoice_total (grand_total):", invoice_total);
 			console.log("diff_payment - total_payments:", this.total_payments);
 			console.log("diff_payment - diff:", diff);
 
@@ -787,15 +781,9 @@ export default {
 
 		// Calculate change to be given back to customer
 		credit_change() {
-			let invoice_total;
-			if (
-				this.pos_profile.posa_allow_multi_currency &&
-				this.invoice_doc.currency !== this.pos_profile.currency
-			) {
-				invoice_total = this.invoice_doc.grand_total;
-			} else {
-				invoice_total = this.invoice_doc.rounded_total || this.invoice_doc.grand_total;
-			}
+			// Customer should only pay the grand_total, not the rounded_total
+			// The rounding adjustment should be handled by the system, not charged to customer
+			let invoice_total = this.invoice_doc.grand_total;
 
 			let change = this.total_payments - invoice_total;
 
@@ -1413,25 +1401,24 @@ export default {
 		},
 		// Method to set cash payment and print (for F4 shortcut)
 		setCashPaymentAndPrint() {
+			console.log("setCashPaymentAndPrint method called");
+			console.log("Invoice doc:", this.invoice_doc);
+			console.log("Payments:", this.invoice_doc?.payments);
+			
 			if (!this.invoice_doc || !this.invoice_doc.payments) {
+				console.log("No invoice doc or payments found - returning");
 				return;
 			}
 
-			// ALWAYS use rounded_total if it exists and is different from grand_total
+			// Customer should only pay the grand_total, not the rounded_total
+			// The rounding adjustment should be handled by the system, not charged to customer
 			let invoiceTotal = this.invoice_doc.grand_total || 0;
-			
-			// If rounded_total exists and is different from grand_total, use rounded_total
-			if (this.invoice_doc.rounded_total !== null && 
-				this.invoice_doc.rounded_total !== undefined && 
-				this.invoice_doc.rounded_total !== this.invoice_doc.grand_total) {
-				invoiceTotal = this.invoice_doc.rounded_total;
-			}
 			
 			console.log("F4 - Grand Total:", this.invoice_doc.grand_total);
 			console.log("F4 - Rounded Total:", this.invoice_doc.rounded_total);
-			console.log("F4 - Using invoiceTotal:", invoiceTotal);
+			console.log("F4 - Using invoiceTotal (grand_total):", invoiceTotal);
 			
-			// Set cash payment to the exact total amount
+			// Set cash payment to the grand_total amount (what customer actually owes)
 			this.invoice_doc.payments.forEach((payment) => {
 				if (payment.mode_of_payment.toLowerCase().includes("cash")) {
 					console.log("F4 - Setting cash payment from", payment.amount, "to", invoiceTotal);
@@ -1443,10 +1430,10 @@ export default {
 				}
 			});
 
-			// Also update the invoice document to ensure consistency
-			this.invoice_doc.grand_total = parseFloat(invoiceTotal);
-			this.invoice_doc.rounded_total = parseFloat(invoiceTotal);
-			this.invoice_doc.outstanding_amount = 0;
+			// Keep the original values - don't override grand_total or rounded_total
+			// The outstanding_amount will be calculated correctly by the system
+			console.log("F4 - Keeping original grand_total:", this.invoice_doc.grand_total);
+			console.log("F4 - Keeping original rounded_total:", this.invoice_doc.rounded_total);
 
 			console.log("F4 - Total payments after setting:", this.total_payments);
 			console.log("F4 - Diff payment after setting:", this.diff_payment);
@@ -1952,6 +1939,7 @@ export default {
 			});
 			// Handle cash payment and print event from F4 shortcut
 			this.eventBus.on("set_cash_payment_and_print", () => {
+				console.log("F4 event received in Payments.vue - calling setCashPaymentAndPrint");
 				this.setCashPaymentAndPrint();
 			});
 			

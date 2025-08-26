@@ -91,6 +91,7 @@ export default {
 
 	shortCashPaymentAndPrint(e) {
 		if (e.key === "F4") {
+			console.log("F4 key pressed - triggering cash payment and print");
 			e.preventDefault();
 			e.stopPropagation();
 			this.cashPaymentAndPrint();
@@ -436,6 +437,7 @@ export default {
 
 	async cashPaymentAndPrint() {
 		try {
+			console.log("cashPaymentAndPrint method called - direct submission mode");
 			if (!this.items || this.items.length === 0) {
 				this.eventBus.emit("show_message", {
 					title: __("Please add items to the invoice first"),
@@ -492,12 +494,18 @@ export default {
 				return;
 			}
 
+			console.log("All validations passed - preparing invoice for direct submission");
+			
+			// Calculate the total amount from items
 			const totalAmount = this.items.reduce((sum, item) => {
 				return sum + (item.amount || (item.rate * item.qty) || 0);
 			}, 0);
 
+			// Round the total to currency precision for accounting purposes
+			// But customer only pays the actual totalAmount (grand_total)
 			const roundedTotal = this.flt(totalAmount, this.currency_precision);
 
+			// Prepare the invoice document
 			if (!this.invoice_doc) {
 				this.invoice_doc = {};
 			}
@@ -516,6 +524,16 @@ export default {
 			this.invoice_doc.base_total = totalAmount;
 			this.invoice_doc.base_net_total = totalAmount;
 			this.invoice_doc.base_rounded_total = roundedTotal;
+			
+			// Calculate rounding adjustment if there's a difference
+			if (Math.abs(roundedTotal - totalAmount) > 0.001) {
+				this.invoice_doc.rounding_adjustment = this.flt(roundedTotal - totalAmount, this.currency_precision);
+				this.invoice_doc.base_rounding_adjustment = this.invoice_doc.rounding_adjustment;
+			} else {
+				this.invoice_doc.rounding_adjustment = 0;
+				this.invoice_doc.base_rounding_adjustment = 0;
+			}
+			
 			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
 			this.invoice_doc.company = this.pos_profile?.company || "Yes Fresh";
 			this.invoice_doc.conversion_rate = 1;
@@ -532,6 +550,7 @@ export default {
 			this.invoice_doc.ignore_pricing_rule = 1;
 			this.invoice_doc.posa_is_printed = 1;
 
+			// Set up payments - cash payment for the full amount
 			if (!this.invoice_doc.payments) {
 				this.invoice_doc.payments = [];
 			}
@@ -544,56 +563,63 @@ export default {
 				}));
 			}
 
+			// Set cash payment to grand_total (what customer actually owes)
 			const cashPayment = this.invoice_doc.payments.find(p => 
 				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
 			);
 			if (cashPayment) {
-				cashPayment.amount = roundedTotal;
-				cashPayment.base_amount = roundedTotal;
+				console.log("Setting cash payment to grand_total:", totalAmount);
+				cashPayment.amount = totalAmount;
+				cashPayment.base_amount = totalAmount;
 				cashPayment.default = 1;
 			}
 
-			this.eventBus.emit("send_invoice_doc_payment", this.invoice_doc);
+			console.log("Invoice prepared, submitting directly...");
 			
-			setTimeout(() => {
-				frappe.call({
-					method: "posawesome.posawesome.api.invoices.submit_invoice",
-					args: {
-						data: {
-							total_change: 0,
-							paid_change: 0,
-							credit_change: 0,
-							redeemed_customer_credit: 0,
-							customer_credit_dict: [],
-							is_cashback: true
-						},
-						invoice: this.invoice_doc
+			// Submit the invoice directly without opening payment dialog
+			frappe.call({
+				method: "posawesome.posawesome.api.invoices.submit_invoice",
+				args: {
+					data: {
+						total_change: 0,
+						paid_change: 0,
+						credit_change: 0,
+						redeemed_customer_credit: 0,
+						customer_credit_dict: [],
+						is_cashback: true
 					},
-					callback: (r) => {
-						if (r.message && r.message.name) {
-							this.printInvoiceByName(r.message.name);
-							
-							this.eventBus.emit("show_message", {
-								title: __("Invoice {0} submitted and printed", [r.message.name]),
-								color: "success",
-							});
-							
-							this.eventBus.emit("clear_invoice");
-						} else {
-							this.eventBus.emit("show_message", {
-								title: __("Invoice submitted but print failed"),
-								color: "warning",
-							});
-						}
-					},
-					error: (r) => {
+					invoice: this.invoice_doc
+				},
+				callback: (r) => {
+					if (r.message && r.message.name) {
+						console.log("Invoice submitted successfully:", r.message.name);
+						
+						// Print the invoice immediately
+						this.printInvoiceByName(r.message.name);
+						
 						this.eventBus.emit("show_message", {
-							title: __("Error submitting invoice"),
-							color: "error",
+							title: __("Invoice {0} submitted and printed", [r.message.name]),
+							color: "success",
+						});
+						
+						// Clear the invoice for next use
+						this.eventBus.emit("clear_invoice");
+					} else {
+						console.log("Invoice submitted but print failed");
+						this.eventBus.emit("show_message", {
+							title: __("Invoice submitted but print failed"),
+							color: "warning",
 						});
 					}
-				});
-			}, 300);
+				},
+				error: (r) => {
+					console.error("Error submitting invoice:", r);
+					this.eventBus.emit("show_message", {
+						title: __("Error submitting invoice"),
+						color: "error",
+					});
+				}
+			});
 
 		} catch (error) {
 			console.error("Error in cash payment and print:", error);
