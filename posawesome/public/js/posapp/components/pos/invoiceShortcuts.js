@@ -471,12 +471,11 @@ export default {
 	 * 
 	 * This method handles the complete invoice submission process:
 	 * 1. Validates all required data (items, customer, POS shift, profile)
-	 * 2. Creates invoice document with proper amounts
-	 * 3. Sets cash payment to rounded_total to prevent outstanding amounts
-	 * 4. Adds write-off for rounding adjustments
-	 * 5. Submits invoice directly to backend
-	 * 6. Prints invoice automatically
-	 * 7. Clears invoice for next use
+	 * 2. Uses the same invoice processing as show_payment() for consistency
+	 * 3. Sets cash payment to the correct amount based on server-calculated totals
+	 * 4. Submits invoice directly to backend
+	 * 5. Prints invoice automatically
+	 * 6. Clears invoice for next use
 	 */
 	async cashPaymentAndPrint() {
 		try {
@@ -537,120 +536,131 @@ export default {
 				return;
 			}
 
-			console.log("All validations passed - preparing invoice for direct submission");
+			console.log("All validations passed - preparing invoice using same method as show_payment()");
 			
-			// Calculate the total amount from items
-			const totalAmount = this.items.reduce((sum, item) => {
-				return sum + (item.amount || (item.rate * item.qty) || 0);
-			}, 0);
-
-			// Round the total to currency precision for accounting purposes
-			// Use a higher precision to avoid floating point issues
-			const roundedTotal = this.flt(totalAmount, 3); // Use 3 decimal places for KWD
-			console.log("Amount calculation:");
-			console.log("- raw totalAmount:", totalAmount);
-			console.log("- currency_precision:", this.currency_precision);
-			console.log("- roundedTotal (3 decimals):", roundedTotal);
-
-			// Prepare the invoice document
-			if (!this.invoice_doc) {
-				this.invoice_doc = {};
+			// USE THE SAME METHOD AS show_payment() FOR CONSISTENCY
+			let invoice_doc;
+			if (
+				this.invoiceType === "Order" &&
+				this.pos_profile.posa_create_only_sales_order &&
+				!this.new_delivery_date &&
+				!this.invoice_doc.posa_delivery_date
+			) {
+				console.log("Building local Sales Order doc for payment");
+				invoice_doc = this.get_invoice_doc();
+			} else if (this.invoice_doc.doctype == "Sales Order" && this.invoiceType === "Invoice") {
+				console.log("Processing Sales Order payment");
+				invoice_doc = await this.process_invoice_from_order();
+			} else {
+				console.log("Processing regular invoice");
+				invoice_doc = this.process_invoice();
 			}
 
-			this.invoice_doc.doctype = "Sales Invoice";
-			this.invoice_doc.customer = this.customer;
-			this.invoice_doc.items = this.items.map(item => ({
-				...item,
-				doctype: "Sales Invoice Item"
-			}));
-			// CRITICAL FIX: Set grand_total to roundedTotal to prevent outstanding amounts
-			// This ensures the invoice total matches the payment amount exactly
-			this.invoice_doc.grand_total = roundedTotal;
-			this.invoice_doc.total = roundedTotal;
-			this.invoice_doc.net_total = roundedTotal;
-			this.invoice_doc.rounded_total = roundedTotal;
-			this.invoice_doc.base_grand_total = roundedTotal;
-			this.invoice_doc.base_total = roundedTotal;
-			this.invoice_doc.base_net_total = roundedTotal;
-			this.invoice_doc.base_rounded_total = roundedTotal;
-			
-			// Since we're now using roundedTotal for grand_total, no rounding adjustment is needed
-			// This prevents the system from creating outstanding amounts
-			this.invoice_doc.rounding_adjustment = 0;
-			this.invoice_doc.base_rounding_adjustment = 0;
-			this.invoice_doc.write_off_amount = 0;
-			this.invoice_doc.base_write_off_amount = 0;
-			
-			console.log("Invoice amounts set to rounded total:");
-			console.log("- grand_total (now rounded):", this.invoice_doc.grand_total);
-			console.log("- rounded_total:", this.invoice_doc.rounded_total);
-			console.log("- disable_rounded_total:", this.invoice_doc.disable_rounded_total);
-			console.log("- No rounding adjustment needed since amounts match and backend rounding is disabled");
-			
-			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
-			this.invoice_doc.company = this.pos_profile?.company || "Yes Fresh";
-			this.invoice_doc.conversion_rate = 1;
-			this.invoice_doc.plc_conversion_rate = 1;
-			this.invoice_doc.price_list_currency = this.pos_profile?.currency || "KWD";
-			this.invoice_doc.is_pos = 1;
-			this.invoice_doc.posa_pos_opening_shift = this.pos_opening_shift?.name;
-			this.invoice_doc.pos_profile = this.pos_profile?.name;
-			this.invoice_doc.company = this.pos_opening_shift?.company || this.pos_profile?.company || "Yes Fresh";
-			const today = new Date().toISOString().split('T')[0];
-			this.invoice_doc.posting_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
-			this.invoice_doc.due_date = this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : today;
-			this.invoice_doc.update_stock = 1;
-			this.invoice_doc.ignore_pricing_rule = 1;
-			this.invoice_doc.posa_is_printed = 1;
-			
-			// CRITICAL FIX: Disable rounded total to prevent backend from applying rounding adjustments
-			// This ensures that the amounts we set (0.109) remain exactly as set without backend interference
-			this.invoice_doc.disable_rounded_total = 1;
-			
-			// Ensure proper payment handling for POS invoices
-			this.invoice_doc.is_pos = 1;
-			this.invoice_doc.paid_amount = roundedTotal; // Set paid amount to rounded total
-			this.invoice_doc.base_paid_amount = roundedTotal;
-
-			// Set up payments - cash payment for the full amount
-			if (!this.invoice_doc.payments) {
-				this.invoice_doc.payments = [];
+			if (!invoice_doc) {
+				console.log("Failed to process invoice");
+				this.eventBus.emit("show_message", {
+					title: __("Error processing invoice"),
+					color: "error",
+				});
+				return;
 			}
 
-			if (this.pos_profile && this.pos_profile.payments) {
-				this.invoice_doc.payments = this.pos_profile.payments.map(payment => ({
-					...payment,
-					amount: 0,
-					base_amount: 0
-				}));
+			// Update invoice_doc with current currency info (same as show_payment)
+			invoice_doc.currency = this.selected_currency || this.pos_profile.currency;
+			invoice_doc.conversion_rate = this.conversion_rate || 1;
+			invoice_doc.plc_conversion_rate = this.exchange_rate || 1;
+
+			// Check if this is a return invoice (same logic as show_payment)
+			if (this.isReturnInvoice || invoice_doc.is_return) {
+				console.log("Preparing RETURN invoice for payment with:", {
+					is_return: invoice_doc.is_return,
+					invoiceType: this.invoiceType,
+					return_against: invoice_doc.return_against,
+					items: invoice_doc.items.length,
+					grand_total: invoice_doc.grand_total,
+				});
+
+				// For return invoices, explicitly ensure all amounts are negative
+				invoice_doc.is_return = 1;
+				if (invoice_doc.grand_total > 0) invoice_doc.grand_total = -Math.abs(invoice_doc.grand_total);
+				if (invoice_doc.rounded_total > 0)
+					invoice_doc.rounded_total = -Math.abs(invoice_doc.rounded_total);
+				if (invoice_doc.total > 0) invoice_doc.total = -Math.abs(invoice_doc.total);
+				if (invoice_doc.base_grand_total > 0)
+					invoice_doc.base_grand_total = -Math.abs(invoice_doc.base_grand_total);
+				if (invoice_doc.base_rounded_total > 0)
+					invoice_doc.base_rounded_total = -Math.abs(invoice_doc.base_rounded_total);
+				if (invoice_doc.base_total > 0) invoice_doc.base_total = -Math.abs(invoice_doc.base_total);
+
+				// Ensure all items have negative quantity and amount
+				if (invoice_doc.items && invoice_doc.items.length) {
+					invoice_doc.items.forEach((item) => {
+						if (item.qty > 0) item.qty = -Math.abs(item.qty);
+						if (item.stock_qty > 0) item.stock_qty = -Math.abs(item.stock_qty);
+						if (item.amount > 0) item.amount = -Math.abs(item.amount);
+					});
+				}
 			}
 
-			const cashPayment = this.invoice_doc.payments.find(p => 
-				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
-			);
-			if (cashPayment) {
-				// Ensure the cash payment covers the full rounded total
-				// Use the same precision as the rounded total to maintain consistency
-				const finalPaymentAmount = this.flt(roundedTotal, 3);
-				console.log("Setting cash payment:");
-				console.log("- grand_total (now rounded):", this.invoice_doc.grand_total);
-				console.log("- rounded_total:", roundedTotal);
-				console.log("- No rounding adjustment needed");
-				console.log("- final payment amount:", finalPaymentAmount);
+			// Get payments with correct sign (positive/negative) - same as show_payment
+			invoice_doc.payments = this.get_payments();
+			console.log("Generated payments:", invoice_doc.payments);
+
+			// Double-check return invoice payments are negative
+			if ((this.isReturnInvoice || invoice_doc.is_return) && invoice_doc.payments.length) {
+				invoice_doc.payments.forEach((payment) => {
+					if (payment.amount > 0) payment.amount = -Math.abs(payment.amount);
+					if (payment.base_amount > 0) payment.base_amount = -Math.abs(payment.base_amount);
+				});
+				console.log("Ensured negative payment amounts for return:", invoice_doc.payments);
+			}
+
+			// Set up cash payment for the full amount based on server-calculated totals
+			if (invoice_doc.payments && invoice_doc.payments.length) {
+				const cashPayment = invoice_doc.payments.find(p => 
+					p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
+				);
 				
-				cashPayment.amount = finalPaymentAmount;
-				cashPayment.base_amount = finalPaymentAmount;
-				cashPayment.default = 1;
+				if (cashPayment) {
+					// Use the same logic as the regular payment flow
+					// The server has already calculated the correct totals with taxes and rounding
+					let finalPaymentAmount;
+					if (invoice_doc.disable_rounded_total) {
+						// No rounding: use grand_total
+						finalPaymentAmount = this.flt(invoice_doc.grand_total, 3);
+					} else {
+						// With rounding: use rounded_total
+						finalPaymentAmount = this.flt(invoice_doc.rounded_total, 3);
+					}
+					
+					console.log("Setting cash payment using server-calculated totals:");
+					console.log("- grand_total (server):", invoice_doc.grand_total);
+					console.log("- rounded_total (server):", invoice_doc.rounded_total);
+					console.log("- disable_rounded_total:", invoice_doc.disable_rounded_total);
+					console.log("- final payment amount:", finalPaymentAmount);
+					
+					cashPayment.amount = finalPaymentAmount;
+					cashPayment.base_amount = finalPaymentAmount;
+					cashPayment.default = 1;
+					
+					// FINAL VERIFICATION: Ensure no outstanding amount
+					const expectedOutstanding = invoice_doc.grand_total - finalPaymentAmount;
+					console.log("Final verification - no outstanding amount:");
+					console.log("- grand_total (server):", invoice_doc.grand_total);
+					console.log("- cash_payment:", finalPaymentAmount);
+					console.log("- expected_outstanding:", expectedOutstanding);
+					console.log("- Should be 0 or negative (change):", expectedOutstanding <= 0 ? "✅" : "❌");
+				}
 			}
 
-			console.log("Invoice prepared, submitting directly...");
-			console.log("Final invoice amounts:");
-			console.log("- grand_total (rounded):", this.invoice_doc.grand_total);
-			console.log("- rounded_total:", this.invoice_doc.rounded_total);
-			console.log("- disable_rounded_total:", this.invoice_doc.disable_rounded_total);
-			console.log("- write_off_amount:", this.invoice_doc.write_off_amount);
-			console.log("- paid_amount:", this.invoice_doc.paid_amount);
-			console.log("- cash payment amount:", cashPayment ? cashPayment.amount : "No cash payment");
+			console.log("Invoice prepared using server method, submitting directly...");
+			console.log("Final invoice amounts (from server):");
+			console.log("- grand_total:", invoice_doc.grand_total);
+			console.log("- rounded_total:", invoice_doc.rounded_total);
+			console.log("- disable_rounded_total:", invoice_doc.disable_rounded_total);
+			console.log("- write_off_amount:", invoice_doc.write_off_amount);
+			console.log("- paid_amount:", invoice_doc.paid_amount);
+			console.log("- cash payment amount:", invoice_doc.payments ? invoice_doc.payments.find(p => p.default)?.amount : "No cash payment");
 			
 			// Submit the invoice directly without opening payment dialog
 			frappe.call({
@@ -664,7 +674,7 @@ export default {
 						customer_credit_dict: [],
 						is_cashback: true
 					},
-					invoice: this.invoice_doc
+					invoice: invoice_doc
 				},
 				callback: (r) => {
 					if (r.message && r.message.name) {
@@ -695,9 +705,11 @@ export default {
 			});
 
 		} catch (error) {
+			console.error("Error in cashPaymentAndPrint:", error);
 			this.eventBus.emit("show_message", {
 				title: __("Error processing cash payment"),
 				color: "error",
+				message: error.message,
 			});
 		}
 	},
