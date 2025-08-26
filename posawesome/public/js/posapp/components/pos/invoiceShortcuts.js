@@ -435,6 +435,18 @@ export default {
 		}
 	},
 
+	/**
+	 * F4 Shortcut: Direct cash payment and print
+	 * 
+	 * This method handles the complete invoice submission process:
+	 * 1. Validates all required data (items, customer, POS shift, profile)
+	 * 2. Creates invoice document with proper amounts
+	 * 3. Sets cash payment to rounded_total to prevent outstanding amounts
+	 * 4. Adds write-off for rounding adjustments
+	 * 5. Submits invoice directly to backend
+	 * 6. Prints invoice automatically
+	 * 7. Clears invoice for next use
+	 */
 	async cashPaymentAndPrint() {
 		try {
 			console.log("cashPaymentAndPrint method called - direct submission mode");
@@ -502,8 +514,12 @@ export default {
 			}, 0);
 
 			// Round the total to currency precision for accounting purposes
-			// But customer only pays the actual totalAmount (grand_total)
-			const roundedTotal = this.flt(totalAmount, this.currency_precision);
+			// Use a higher precision to avoid floating point issues
+			const roundedTotal = this.flt(totalAmount, 3); // Use 3 decimal places for KWD
+			console.log("Amount calculation:");
+			console.log("- raw totalAmount:", totalAmount);
+			console.log("- currency_precision:", this.currency_precision);
+			console.log("- roundedTotal (3 decimals):", roundedTotal);
 
 			// Prepare the invoice document
 			if (!this.invoice_doc) {
@@ -526,12 +542,32 @@ export default {
 			this.invoice_doc.base_rounded_total = roundedTotal;
 			
 			// Calculate rounding adjustment if there's a difference
-			if (Math.abs(roundedTotal - totalAmount) > 0.001) {
-				this.invoice_doc.rounding_adjustment = this.flt(roundedTotal - totalAmount, this.currency_precision);
+			// Use a smaller threshold to catch small rounding differences
+			const roundingDiff = roundedTotal - totalAmount;
+			console.log("Rounding calculation:");
+			console.log("- totalAmount (raw):", totalAmount);
+			console.log("- roundedTotal:", roundedTotal);
+			console.log("- roundingDiff:", roundingDiff);
+			console.log("- threshold check:", Math.abs(roundingDiff) > 0.0001);
+			
+			if (Math.abs(roundingDiff) > 0.0001) {
+				// Use higher precision for rounding adjustment to avoid precision loss
+				this.invoice_doc.rounding_adjustment = this.flt(roundingDiff, 3);
 				this.invoice_doc.base_rounding_adjustment = this.invoice_doc.rounding_adjustment;
+				
+				// Add write-off entry for the rounding adjustment to prevent outstanding amount
+				this.invoice_doc.write_off_amount = this.invoice_doc.rounding_adjustment;
+				this.invoice_doc.base_write_off_amount = this.invoice_doc.base_rounding_adjustment;
+				
+				console.log("Rounding adjustment applied:");
+				console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
+				console.log("- write_off_amount:", this.invoice_doc.write_off_amount);
 			} else {
 				this.invoice_doc.rounding_adjustment = 0;
 				this.invoice_doc.base_rounding_adjustment = 0;
+				this.invoice_doc.write_off_amount = 0;
+				this.invoice_doc.base_write_off_amount = 0;
+				console.log("No rounding adjustment needed");
 			}
 			
 			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
@@ -549,6 +585,11 @@ export default {
 			this.invoice_doc.update_stock = 1;
 			this.invoice_doc.ignore_pricing_rule = 1;
 			this.invoice_doc.posa_is_printed = 1;
+			
+			// Ensure proper payment handling for POS invoices
+			this.invoice_doc.is_pos = 1;
+			this.invoice_doc.paid_amount = roundedTotal; // Set paid amount to rounded total
+			this.invoice_doc.base_paid_amount = roundedTotal;
 
 			// Set up payments - cash payment for the full amount
 			if (!this.invoice_doc.payments) {
@@ -563,18 +604,32 @@ export default {
 				}));
 			}
 
-			// Set cash payment to grand_total (what customer actually owes)
 			const cashPayment = this.invoice_doc.payments.find(p => 
 				p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
 			);
 			if (cashPayment) {
-				console.log("Setting cash payment to grand_total:", totalAmount);
-				cashPayment.amount = totalAmount;
-				cashPayment.base_amount = totalAmount;
+				// Ensure the cash payment covers the full rounded total
+				// Use the same precision as the rounded total to maintain consistency
+				const finalPaymentAmount = this.flt(roundedTotal, 3);
+				console.log("Setting cash payment:");
+				console.log("- grand_total:", totalAmount);
+				console.log("- rounded_total:", roundedTotal);
+				console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
+				console.log("- final payment amount:", finalPaymentAmount);
+				
+				cashPayment.amount = finalPaymentAmount;
+				cashPayment.base_amount = finalPaymentAmount;
 				cashPayment.default = 1;
 			}
 
 			console.log("Invoice prepared, submitting directly...");
+			console.log("Final invoice amounts:");
+			console.log("- grand_total:", this.invoice_doc.grand_total);
+			console.log("- rounded_total:", this.invoice_doc.rounded_total);
+			console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
+			console.log("- write_off_amount:", this.invoice_doc.write_off_amount);
+			console.log("- paid_amount:", this.invoice_doc.paid_amount);
+			console.log("- cash payment amount:", cashPayment ? cashPayment.amount : "No cash payment");
 			
 			// Submit the invoice directly without opening payment dialog
 			frappe.call({
