@@ -764,6 +764,7 @@ export default {
 
 			// Customer should only pay the grand_total, not the rounded_total
 			// The rounding adjustment should be handled by the system, not charged to customer
+			// NOTE: With F4 shortcut fix, grand_total now equals rounded_total, so no outstanding amounts
 			let invoice_total = this.invoice_doc.grand_total;
 
 			let diff = invoice_total - this.total_payments;

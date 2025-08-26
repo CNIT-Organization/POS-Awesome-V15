@@ -98,6 +98,32 @@ export default {
 		}
 	},
 
+	shortSubmitAndPrint(e) {
+		if (e.key === "F6" || e.keyCode === 117 || e.which === 117) {
+			e.preventDefault();
+			e.stopPropagation();
+			
+			// F6: Use existing built-in functions - same as clicking "Pay" then "Submit & Print"
+			this.eventBus.emit("show_payment", "true");
+			
+			// Listen for when payment page is ready, then submit
+			const checkPaymentReady = () => {
+				if (this.invoice_doc && this.invoice_doc.payments && this.invoice_doc.payments.length > 0) {
+					// Payment page is ready, submit with print
+					this.eventBus.emit("submit_with_print");
+					// Remove the listener since we don't need it anymore
+					this.eventBus.off("register_invoice", checkPaymentReady);
+				} else {
+					// Not ready yet, check again in 100ms
+					setTimeout(checkPaymentReady, 100);
+				}
+			};
+			
+			// Start checking after a short delay
+			setTimeout(checkPaymentReady, 200);
+		}
+	},
+
 	shortEditPrice(e) {
 		if (e.key === "/") {
 			e.preventDefault();
@@ -129,6 +155,7 @@ export default {
 				shortcuts: [
 					{ key: "F1", description: "Show this shortcuts help dialog" },
 					{ key: "F4", description: "Quick cash payment → submit → print" },
+					{ key: "F6", description: "Submit current invoice and print directly" },
 					{ key: "End", description: "Recall today's invoices with Return/Print options" }
 				]
 			},
@@ -153,6 +180,7 @@ export default {
 				category: "🖨️ Printing & Receipts",
 				shortcuts: [
 					{ key: "F4", description: "Auto-print after cash payment" },
+					{ key: "F6", description: "Submit and print current invoice" },
 					{ key: "End → Print", description: "Print any today's invoice" }
 				]
 			},
@@ -201,6 +229,7 @@ export default {
 					<h4 style="margin: 0 0 10px 0; color: #856404;">💡 Pro Tips:</h4>
 					<ul style="margin: 0; padding-left: 20px; color: #856404;">
 						<li>Use <strong>F4</strong> for quick cash transactions</li>
+						<li>Use <strong>F6</strong> to submit and print current invoice</li>
 						<li>Press <strong>End</strong> to find and reprint today's invoices</li>
 						<li>Use <strong>/</strong> and <strong>.</strong> to quickly edit first item</li>
 						<li>Hold invoices for later with the <strong>Hold</strong> button</li>
@@ -227,6 +256,7 @@ export default {
 		const shortcuts = [
 			{ key: "F1", description: "Show shortcuts help" },
 			{ key: "F4", description: "Quick cash payment → submit → print" },
+			{ key: "F6", description: "Submit current invoice and print directly" },
 			{ key: "Home", description: "Open cash drawer" },
 			{ key: "End", description: "Recall today's invoices" },
 			{ key: "/", description: "Edit price of first item" },
@@ -272,6 +302,7 @@ export default {
 					<h3>💡 Pro Tips:</h3>
 					<ul>
 						<li>Use F4 for quick cash transactions</li>
+						<li>Use F6 to submit and print current invoice</li>
 						<li>Press End to find and reprint today's invoices</li>
 						<li>Use / and . to quickly edit first item</li>
 						<li>Hold invoices for later with the Hold button</li>
@@ -532,43 +563,29 @@ export default {
 				...item,
 				doctype: "Sales Invoice Item"
 			}));
-			this.invoice_doc.grand_total = totalAmount;
-			this.invoice_doc.total = totalAmount;
-			this.invoice_doc.net_total = totalAmount;
+			// CRITICAL FIX: Set grand_total to roundedTotal to prevent outstanding amounts
+			// This ensures the invoice total matches the payment amount exactly
+			this.invoice_doc.grand_total = roundedTotal;
+			this.invoice_doc.total = roundedTotal;
+			this.invoice_doc.net_total = roundedTotal;
 			this.invoice_doc.rounded_total = roundedTotal;
-			this.invoice_doc.base_grand_total = totalAmount;
-			this.invoice_doc.base_total = totalAmount;
-			this.invoice_doc.base_net_total = totalAmount;
+			this.invoice_doc.base_grand_total = roundedTotal;
+			this.invoice_doc.base_total = roundedTotal;
+			this.invoice_doc.base_net_total = roundedTotal;
 			this.invoice_doc.base_rounded_total = roundedTotal;
 			
-			// Calculate rounding adjustment if there's a difference
-			// Use a smaller threshold to catch small rounding differences
-			const roundingDiff = roundedTotal - totalAmount;
-			console.log("Rounding calculation:");
-			console.log("- totalAmount (raw):", totalAmount);
-			console.log("- roundedTotal:", roundedTotal);
-			console.log("- roundingDiff:", roundingDiff);
-			console.log("- threshold check:", Math.abs(roundingDiff) > 0.0001);
+			// Since we're now using roundedTotal for grand_total, no rounding adjustment is needed
+			// This prevents the system from creating outstanding amounts
+			this.invoice_doc.rounding_adjustment = 0;
+			this.invoice_doc.base_rounding_adjustment = 0;
+			this.invoice_doc.write_off_amount = 0;
+			this.invoice_doc.base_write_off_amount = 0;
 			
-			if (Math.abs(roundingDiff) > 0.0001) {
-				// Use higher precision for rounding adjustment to avoid precision loss
-				this.invoice_doc.rounding_adjustment = this.flt(roundingDiff, 3);
-				this.invoice_doc.base_rounding_adjustment = this.invoice_doc.rounding_adjustment;
-				
-				// Add write-off entry for the rounding adjustment to prevent outstanding amount
-				this.invoice_doc.write_off_amount = this.invoice_doc.rounding_adjustment;
-				this.invoice_doc.base_write_off_amount = this.invoice_doc.base_rounding_adjustment;
-				
-				console.log("Rounding adjustment applied:");
-				console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
-				console.log("- write_off_amount:", this.invoice_doc.write_off_amount);
-			} else {
-				this.invoice_doc.rounding_adjustment = 0;
-				this.invoice_doc.base_rounding_adjustment = 0;
-				this.invoice_doc.write_off_amount = 0;
-				this.invoice_doc.base_write_off_amount = 0;
-				console.log("No rounding adjustment needed");
-			}
+			console.log("Invoice amounts set to rounded total:");
+			console.log("- grand_total (now rounded):", this.invoice_doc.grand_total);
+			console.log("- rounded_total:", this.invoice_doc.rounded_total);
+			console.log("- disable_rounded_total:", this.invoice_doc.disable_rounded_total);
+			console.log("- No rounding adjustment needed since amounts match and backend rounding is disabled");
 			
 			this.invoice_doc.currency = this.pos_profile?.currency || "KWD";
 			this.invoice_doc.company = this.pos_profile?.company || "Yes Fresh";
@@ -585,6 +602,10 @@ export default {
 			this.invoice_doc.update_stock = 1;
 			this.invoice_doc.ignore_pricing_rule = 1;
 			this.invoice_doc.posa_is_printed = 1;
+			
+			// CRITICAL FIX: Disable rounded total to prevent backend from applying rounding adjustments
+			// This ensures that the amounts we set (0.109) remain exactly as set without backend interference
+			this.invoice_doc.disable_rounded_total = 1;
 			
 			// Ensure proper payment handling for POS invoices
 			this.invoice_doc.is_pos = 1;
@@ -612,9 +633,9 @@ export default {
 				// Use the same precision as the rounded total to maintain consistency
 				const finalPaymentAmount = this.flt(roundedTotal, 3);
 				console.log("Setting cash payment:");
-				console.log("- grand_total:", totalAmount);
+				console.log("- grand_total (now rounded):", this.invoice_doc.grand_total);
 				console.log("- rounded_total:", roundedTotal);
-				console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
+				console.log("- No rounding adjustment needed");
 				console.log("- final payment amount:", finalPaymentAmount);
 				
 				cashPayment.amount = finalPaymentAmount;
@@ -624,9 +645,9 @@ export default {
 
 			console.log("Invoice prepared, submitting directly...");
 			console.log("Final invoice amounts:");
-			console.log("- grand_total:", this.invoice_doc.grand_total);
+			console.log("- grand_total (rounded):", this.invoice_doc.grand_total);
 			console.log("- rounded_total:", this.invoice_doc.rounded_total);
-			console.log("- rounding_adjustment:", this.invoice_doc.rounding_adjustment);
+			console.log("- disable_rounded_total:", this.invoice_doc.disable_rounded_total);
 			console.log("- write_off_amount:", this.invoice_doc.write_off_amount);
 			console.log("- paid_amount:", this.invoice_doc.paid_amount);
 			console.log("- cash payment amount:", cashPayment ? cashPayment.amount : "No cash payment");
@@ -647,8 +668,6 @@ export default {
 				},
 				callback: (r) => {
 					if (r.message && r.message.name) {
-						console.log("Invoice submitted successfully:", r.message.name);
-						
 						// Print the invoice immediately
 						this.printInvoiceByName(r.message.name);
 						
@@ -660,7 +679,6 @@ export default {
 						// Clear the invoice for next use
 						this.eventBus.emit("clear_invoice");
 					} else {
-						console.log("Invoice submitted but print failed");
 						this.eventBus.emit("show_message", {
 							title: __("Invoice submitted but print failed"),
 							color: "warning",
@@ -677,9 +695,213 @@ export default {
 			});
 
 		} catch (error) {
-			console.error("Error in cash payment and print:", error);
 			this.eventBus.emit("show_message", {
 				title: __("Error processing cash payment"),
+				color: "error",
+			});
+		}
+	},
+
+
+
+	/**
+	 * F6 Shortcut: Direct submit and print current invoice
+	 * 
+	 * This method handles the complete invoice submission process:
+	 * 1. Validates all required data (items, customer, POS shift, profile)
+	 * 2. Creates invoice document with current items and amounts
+	 * 3. Sets up proper payment structure
+	 * 4. Submits invoice directly to backend
+	 * 5. Prints invoice automatically
+	 * 6. Clears invoice for next use
+	 */
+	async submitAndPrintDirect() {
+		try {
+			
+			// Validate required data
+			if (!this.items || this.items.length === 0) {
+				this.eventBus.emit("show_message", {
+					title: __("Please add items to the invoice first"),
+					color: "warning",
+				});
+				return;
+			}
+
+			if (!this.customer) {
+				this.eventBus.emit("show_message", {
+					title: __("Please select a customer first"),
+					color: "warning",
+				});
+				return;
+			}
+
+			if (!this.pos_opening_shift || !this.pos_opening_shift.name) {
+				this.eventBus.emit("show_message", {
+					title: __("No active POS shift found. Please start a POS shift first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.status !== "Open") {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not open. Please start a new POS shift first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (!this.pos_profile || !this.pos_profile.name) {
+				this.eventBus.emit("show_message", {
+					title: __("No POS profile found. Please select a POS profile first."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.pos_profile !== this.pos_profile.name) {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not for the same POS profile. Please start a new POS shift."),
+					color: "error",
+				});
+				return;
+			}
+
+			if (this.pos_opening_shift.company !== this.pos_profile.company) {
+				this.eventBus.emit("show_message", {
+					title: __("POS shift is not for the same company. Please start a new POS shift."),
+					color: "error",
+				});
+				return;
+			}
+
+			// Calculate totals from current items
+			const netTotal = this.items.reduce((sum, item) => {
+				return sum + (item.amount || (item.rate * item.qty) || 0);
+			}, 0);
+
+			// Add delivery charges if applicable
+			const totalWithDelivery = netTotal + (this.delivery_charges_rate || 0);
+			
+			// Calculate tax amount if applicable
+			const taxAmount = this.total_tax || 0;
+			
+			// Calculate grand total
+			const grandTotal = totalWithDelivery + taxAmount;
+			
+			// Round the total to currency precision
+			const roundedTotal = this.flt(grandTotal, this.currency_precision || 2);
+
+			// Prepare the invoice document
+			const invoiceDoc = {
+				doctype: "Sales Invoice",
+				customer: this.customer,
+				items: this.items.map(item => ({
+					...item,
+					doctype: "Sales Invoice Item"
+				})),
+				net_total: netTotal,
+				total: totalWithDelivery,
+				grand_total: grandTotal,
+				rounded_total: roundedTotal,
+				base_net_total: netTotal,
+				base_total: totalWithDelivery,
+				base_grand_total: grandTotal,
+				base_rounded_total: roundedTotal,
+				total_taxes_and_charges: taxAmount,
+				base_total_taxes_and_charges: taxAmount,
+				currency: this.selected_currency || this.pos_profile?.currency || "KWD",
+				company: this.pos_profile?.company || "Yes Fresh",
+				conversion_rate: this.conversion_rate || 1,
+				plc_conversion_rate: this.exchange_rate || 1,
+				price_list_currency: this.price_list_currency || this.pos_profile?.currency || "KWD",
+				is_pos: 1,
+				posa_pos_opening_shift: this.pos_opening_shift?.name,
+				pos_profile: this.pos_profile?.name,
+				posting_date: this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : frappe.datetime.nowdate(),
+				due_date: this.posting_date_display ? this.formatDateForBackend(this.posting_date_display) : frappe.datetime.nowdate(),
+				update_stock: 1,
+				ignore_pricing_rule: 1,
+				posa_is_printed: 1,
+				paid_amount: roundedTotal,
+				base_paid_amount: roundedTotal,
+				discount_amount: this.discount_amount || 0,
+				base_discount_amount: this.discount_amount || 0,
+				additional_discount_percentage: this.additional_discount_percentage || 0,
+				additional_discount_amount: this.additional_discount_amount || 0
+			};
+
+			// Set up payments - cash payment for the full amount
+			if (this.pos_profile && this.pos_profile.payments) {
+				invoiceDoc.payments = this.pos_profile.payments.map(payment => ({
+					...payment,
+					amount: 0,
+					base_amount: 0
+				}));
+
+				const cashPayment = invoiceDoc.payments.find(p => 
+					p.mode_of_payment && p.mode_of_payment.toLowerCase().includes("cash")
+				);
+				if (cashPayment) {
+					cashPayment.amount = roundedTotal;
+					cashPayment.base_amount = roundedTotal;
+					cashPayment.default = 1;
+				}
+			}
+
+			// Add delivery charges if applicable
+			if (this.delivery_charges_rate > 0) {
+				invoiceDoc.delivery_charges = this.delivery_charges_rate;
+				invoiceDoc.base_delivery_charges = this.delivery_charges_rate;
+			}
+
+
+			
+			// Submit the invoice directly
+			frappe.call({
+				method: "posawesome.posawesome.api.invoices.submit_invoice",
+				args: {
+					data: {
+						total_change: 0,
+						paid_change: 0,
+						credit_change: 0,
+						redeemed_customer_credit: 0,
+						customer_credit_dict: [],
+						is_cashback: true
+					},
+					invoice: invoiceDoc
+				},
+				callback: (r) => {
+					if (r.message && r.message.name) {
+						// Print the invoice immediately
+						this.printInvoiceByName(r.message.name);
+						
+						this.eventBus.emit("show_message", {
+							title: __("Invoice {0} submitted and printed", [r.message.name]),
+							color: "success",
+						});
+						
+						// Clear the invoice for next use
+						this.eventBus.emit("clear_invoice");
+					} else {
+						this.eventBus.emit("show_message", {
+							title: __("Invoice submitted but print failed"),
+							color: "warning",
+						});
+					}
+				},
+				error: (r) => {
+					console.error("Error submitting invoice:", r);
+					this.eventBus.emit("show_message", {
+						title: __("Error submitting invoice"),
+						color: "error",
+					});
+				}
+			});
+
+		} catch (error) {
+			this.eventBus.emit("show_message", {
+				title: __("Error processing invoice submission"),
 				color: "error",
 			});
 		}
