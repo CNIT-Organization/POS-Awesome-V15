@@ -1,3 +1,5 @@
+import { silentPrint } from "../../plugins/print.js";
+
 export default {
 	shortOpenFirstItem(e) {
 		if (e.key.toLowerCase() === "a" && (e.ctrlKey || e.metaKey)) {
@@ -89,9 +91,15 @@ export default {
 		}
 	},
 
+	/**
+	 * F4 Shortcut: Cash payment and print
+	 * This shortcut should always use silent printing for better cashier experience
+	 * as it allows cashiers to handle more customers without waiting for print dialogs
+	 */
 	shortCashPaymentAndPrint(e) {
 		if (e.key === "F4") {
 			console.log("F4 key pressed - triggering cash payment and print");
+			console.log("This shortcut should use silent printing for better cashier experience");
 			e.preventDefault();
 			e.stopPropagation();
 			this.cashPaymentAndPrint();
@@ -417,6 +425,10 @@ export default {
 
 	async printInvoiceByName(invoiceName) {
 		try {
+			console.log("printInvoiceByName called for invoice:", invoiceName);
+			console.log("POS Profile:", this.pos_profile);
+			console.log("posa_silent_print setting:", this.pos_profile.posa_silent_print);
+			
 			const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
 			const letter_head = this.pos_profile.letter_head || 0;
 			const url =
@@ -429,10 +441,23 @@ export default {
 				"&no_letterhead=" +
 				letter_head;
 
+			console.log("Print URL:", url);
+
+			// For F4 shortcut, always try to use silent printing for better cashier experience
+			// This allows cashiers to handle more customers without waiting for print dialogs
+			console.log("Attempting to use silent printing for F4 shortcut...");
+			
+			// Use the same working implementation as in invoiceOfferMethods.js
 			if (this.pos_profile.posa_silent_print) {
-				import("../plugins/print.js").then(({ silentPrint }) => {
+				console.log("Using silent printing (posa_silent_print enabled)");
+				try {
+					// Use the imported silentPrint function directly
+					console.log("Calling silentPrint function...");
 					silentPrint(url);
-				}).catch(() => {
+					console.log("silentPrint called successfully for F4 shortcut");
+				} catch (printError) {
+					console.warn("silentPrint failed, falling back to regular printing:", printError);
+					// Fallback to regular printing if silentPrint fails
 					const printWindow = window.open(url, "Print");
 					printWindow.addEventListener(
 						"load",
@@ -441,8 +466,10 @@ export default {
 						},
 						{ once: true },
 					);
-				});
+				}
 			} else {
+				console.log("Using regular printing (posa_silent_print disabled)");
+				console.log("Note: Enable posa_silent_print in POS Profile for better cashier experience");
 				const printWindow = window.open(url, "Print");
 				printWindow.addEventListener(
 					"load",
