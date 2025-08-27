@@ -1,4 +1,6 @@
 import { silentPrint } from "../../plugins/print.js";
+import { isOffline } from "../../../offline";
+import generateOfflineInvoiceHTML from "../../../offline_print_template";
 
 export default {
 	shortOpenFirstItem(e) {
@@ -428,7 +430,36 @@ export default {
 			console.log("printInvoiceByName called for invoice:", invoiceName);
 			console.log("POS Profile:", this.pos_profile);
 			console.log("posa_silent_print setting:", this.pos_profile.posa_silent_print);
+			console.log("Offline status:", isOffline());
 			
+			// Check if we're offline - use SALES POS print format
+			if (isOffline()) {
+				console.log("POS is offline - using SALES POS print format");
+				try {
+					// For offline printing, we need to get the invoice data from the current session
+					// Since this is called after submission, we'll use the invoice_doc if available
+					if (this.invoice_doc && this.invoice_doc.name === invoiceName) {
+						console.log("Using current invoice_doc for offline printing with SALES POS format");
+						this.printOfflineInvoiceWithSalesPOSFormat(this.invoice_doc);
+					} else {
+						console.log("Invoice doc not available, showing offline message");
+						this.eventBus.emit("show_message", {
+							title: __("Invoice printed offline"),
+							color: "success",
+						});
+					}
+					return;
+				} catch (offlineError) {
+					console.warn("Offline printing failed:", offlineError);
+					this.eventBus.emit("show_message", {
+						title: __("Offline printing failed"),
+						color: "warning",
+					});
+					return;
+				}
+			}
+			
+			// Online printing - use standard print format
 			const print_format = this.pos_profile.print_format_for_online || this.pos_profile.print_format;
 			const letter_head = this.pos_profile.letter_head || 0;
 			const url =
@@ -491,6 +522,270 @@ export default {
 				color: "error",
 			});
 		}
+	},
+
+	/**
+	 * Print invoice using SALES POS print format when POS is offline
+	 * This uses the same format as the online printing but works offline
+	 */
+	printOfflineInvoiceWithSalesPOSFormat(invoice) {
+		if (!invoice) {
+			console.warn("No invoice provided for offline printing");
+			return;
+		}
+		
+		try {
+			console.log("Using SALES POS print format for offline printing...");
+			
+			// Use the same print format as online but with the offline invoice data
+			// The SALES POS format is defined in the POS Profile print_format setting
+			const print_format = this.pos_profile.print_format || "POS Print";
+			const letter_head = this.pos_profile.letter_head || 0;
+			
+			// Create a data URL with the invoice data for offline printing
+			const printData = {
+				doctype: "Sales Invoice",
+				name: invoice.name,
+				format: print_format,
+				no_letterhead: letter_head,
+				// Include all the invoice data needed for the template
+				invoice_data: invoice
+			};
+			
+			console.log("Opening SALES POS print window...");
+			
+			// For offline printing, we'll create a simplified version that mimics the SALES POS format
+			// Since we can't use the server-side Jinja2 template, we'll create a client-side version
+			const html = this.generateSalesPOSHTML(invoice);
+			
+			const win = window.open("", "_blank");
+			win.document.write(html);
+			win.document.close();
+			win.focus();
+			
+			// Auto-print after a short delay to ensure content is loaded
+			setTimeout(() => {
+				console.log("Triggering SALES POS offline print...");
+				win.print();
+			}, 500);
+			
+			console.log("SALES POS offline invoice printed successfully");
+		} catch (error) {
+			console.error("Error in SALES POS offline printing:", error);
+			this.eventBus.emit("show_message", {
+				title: __("Error printing offline invoice"),
+				color: "error",
+			});
+		}
+	},
+
+	/**
+	 * Generate HTML that matches the SALES POS print format
+	 * This replicates the server-side template for offline use
+	 */
+	generateSalesPOSHTML(invoice) {
+		if (!invoice) return "";
+		
+		// Generate items rows
+		const itemsRows = (invoice.items || [])
+			.map((item) => {
+				return `
+					<tr>
+						<td colspan="4">${item.item_name}<br>
+						<div style="text-align:right;">
+						${item.item_name}</div></td>
+					</tr>
+					<tr>
+						<td>${item.barcode || item.item_code}</td>
+						<td>${item.qty}</td>
+						<td>${this.formatCurrency(item.rate)}</td>
+						<td>${this.formatCurrency(item.amount)}</td>
+					</tr>
+				`;
+			})
+			.join("");
+
+		// Generate payments info
+		const paymentsInfo = (invoice.payments || [])
+			.map((payment) => `Payment Method: ${payment.mode_of_payment}`)
+			.join("<br>");
+
+		// Calculate change amount
+		const changeAmount = (invoice.paid_amount || 0) - (invoice.grand_total || 0);
+
+		const html = `<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Invoice ${invoice.name || ""}</title>
+	<style>
+		@import url('http://fonts.cdnfonts.com/css/vcr-osd-mono');
+		body {
+			font-family: 'VCR OSD Mono';
+			color: #000;
+			text-align:center;
+			display: flex;
+			justify-content: center;
+			font-size: 10px;
+		}
+		.address {
+			line-height: 100%;
+		}
+		.brand {
+			font-size:20px;
+		}
+		.print-format td, .print-format th {
+			padding:3px!important;
+		}
+		.address {
+			margin-top:0px;
+		}
+		.bill{
+			width: 80mm;
+			margin: 5 5 5 auto;
+			box-shadow: 0 0 3px #aaa;
+			padding: 10px 10px;
+			box-sizing: border-box;
+		}
+		.flex {
+			display: flex;
+		}
+		.justify-between {
+			justify-content: space-between;
+		}
+		.table{
+			border-collapse: collapse;
+			width: 100%;
+		}
+		.table .header{
+			border-top: 3px dashed #000;
+			border-bottom: 3px dashed #000;
+		}
+		th {
+			color:black!important;
+		}
+		td {
+			color:black!important;
+		}
+		.table {
+			text-align: left;
+		}
+		.table .total td {
+			border-top: 2px dashed #000;
+			border-bottom: 2px dashed #000;
+		}
+		.table .net-amount td:first-of-type {
+			border-top: none;
+		}
+		.table .net-amount td {
+			border-top: 2px dashed #000;
+		}
+		.table .net-amount{
+			border-bottom: 2px dashed #000;
+		}
+		@media print {
+			.hidden-print,
+			.hidden-print * {
+				display: none !important;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="bill">
+		<div class="brand">
+			<img src="/files/YeshFresh_LOGO.PNG" alt="Company Logo" height="100px" width="280px"><br>
+			<b>
+				<!--سوق فلامينجو سوبر ماركت المركزي-->
+			</b>
+		</div>
+		<div class="address">
+			Salmiya, Block 10, Saba Street
+			<br>Phone No. : 60628166
+		</div>
+		<div class="invoice"><b>CASH INVOICE </b></div>
+		<div class="bill-details">
+			<div class="flex justify-between">
+				<div>Invoice No: ${invoice.name}</div>
+			</div>
+			<div class="flex justify-between">
+				<div>Date: ${invoice.posting_date || ""}</div>
+				<div>Time: ${invoice.posting_time || ""}</div>
+			</div>
+		</div>
+		<table class="table" width="100%">
+			<tr class="header">
+				<th width="30%" class="td2">
+					Item &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+					الإ سم
+				</th> 
+				<th width="22%" class="td2">
+					Qty &nbsp;
+					الكمية
+				</th> 
+				<th width="22%" class="td2">
+					U/P &nbsp; &nbsp;
+					س\\ و
+				</th>
+				<th width="26%" class="td2">
+					Amount
+					المجموع
+				</th>
+			</tr>
+			${itemsRows}
+		</table>
+		<table class="table" width="100%">
+			<tr class="total">
+				<td>Total</td>
+				<td>المجموع</td>
+				<td></td>
+				<td></td>
+				<td>${this.formatCurrency(invoice.total)}</td>
+			</tr>
+			${invoice.discount_amount ? `
+			<tr>
+				<td>Discount</td>
+				<td>تخفيض</td>
+				<td></td>
+				<td></td>
+				<td>${this.formatCurrency(invoice.discount_amount)}</td>
+			</tr>
+			` : ""}
+			<tr class="net-amount">
+				<td>Net Amount</td>
+				<td colspan="3">
+					المجموع الإجمالي
+				</td>
+				<td>${this.formatCurrency(invoice.rounded_total)}</td>
+			</tr>
+			<tr>
+				<td>Paid Amount</td>
+				<td colspan="3">
+					المبلغ المدفوع
+				</td>
+				<td>${this.formatCurrency(invoice.paid_amount)}</td>
+			</tr>
+			<tr class="net-amount">
+				<td colspan="5" style="font-size:20; text-align: center;"><b>Change Cash (${this.formatCurrency(changeAmount)})</b></td>
+			</tr>
+		</table>
+		
+		${paymentsInfo}<br>
+		Username: ${invoice.pos_profile || ""} [Biller] <br>
+		Thank You ! Please visit again
+	</div>
+</body>
+</html>`;
+		
+		return html;
+	},
+
+	/**
+	 * Format currency values for display
+	 */
+	formatCurrency(amount) {
+		if (amount === null || amount === undefined) return "0.00";
+		return parseFloat(amount).toFixed(2);
 	},
 
 	/**
