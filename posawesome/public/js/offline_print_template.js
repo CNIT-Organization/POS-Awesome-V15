@@ -1,13 +1,28 @@
-export default function generateOfflineInvoiceHTML(invoice) {
+export default function generateOfflineInvoiceHTML(invoice, posProfile = null, customFormat = null) {
 	if (!invoice) return "";
+
+	const companyName = posProfile?.company || invoice.company || "Company Name";
+	const posNumber = posProfile?.name || invoice.pos_profile || "POS";
+	const letterHead = posProfile?.letter_head;
+	const terms = posProfile?.tc_name || invoice.terms || "";
+
+	if (customFormat && typeof customFormat === 'function') {
+		return customFormat(invoice, posProfile);
+	}
+
+	const printFormat = posProfile?.print_format;
+	
+	if (printFormat) {
+		return generatePOSPrintFormat(invoice, posProfile);
+	}
 
 	const itemsRows = (invoice.items || [])
 		.map((it) => {
 			const sn = it.serial_no ? `<br><b>SR.No:</b><br>${it.serial_no.replace(/\n/g, ", ")}` : "";
 			return `<tr>
         <td>${it.item_code}${it.item_name && it.item_name !== it.item_code ? `<br>${it.item_name}` : ""}${sn}</td>
-        <td style="text-align:right">${it.qty} ${it.uom || ""}<br>@ ${it.rate}</td>
-        <td style="text-align:right">${it.amount}</td>
+        <td class="text-right">${it.qty} ${it.uom || ""}<br>@ ${formatCurrency(it.rate, invoice.currency)}</td>
+        <td class="text-right">${formatCurrency(it.amount, invoice.currency)}</td>
       </tr>`;
 		})
 		.join("");
@@ -16,7 +31,7 @@ export default function generateOfflineInvoiceHTML(invoice) {
 		.map(
 			(row) => `<tr>
       <td class="text-right" style="width:70%">${row.description}@${row.rate}%</td>
-      <td class="text-right">${row.tax_amount}</td>
+      <td class="text-right">${formatCurrency(row.tax_amount, invoice.currency)}</td>
     </tr>`,
 		)
 		.join("");
@@ -24,16 +39,24 @@ export default function generateOfflineInvoiceHTML(invoice) {
 	const discountRow = invoice.discount_amount
 		? `<tr>
       <td class="text-right" style="width:75%">Discount</td>
-      <td class="text-right">${invoice.discount_amount}</td>
+      <td class="text-right">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
     </tr>`
 		: "";
 
 	const changeRow = invoice.change_amount
 		? `<tr>
       <td class="text-right" style="width:75%">Change Amount</td>
-      <td class="text-right">${invoice.change_amount}</td>
+      <td class="text-right">${formatCurrency(invoice.change_amount, invoice.currency)}</td>
     </tr>`
 		: "";
+
+	const qtyTotal = (invoice.items || []).reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+
+	const formatDate = (dateStr) => {
+		if (!dateStr) return "";
+		const date = new Date(dateStr);
+		return date.toLocaleDateString();
+	};
 
 	const html = `<!DOCTYPE html>
   <html>
@@ -41,40 +64,339 @@ export default function generateOfflineInvoiceHTML(invoice) {
     <meta charset="utf-8">
     <title>Invoice ${invoice.name || ""}</title>
     <style>
-      table, tr, td, div, p { line-height:120%; vertical-align:middle; font-size:10px; }
-      .print-format { width:3.5in; padding:0.1in; min-height:7in; }
-      .text-right { text-align:right; }
+      .print-format table, .print-format tr, 
+      .print-format td, .print-format div, .print-format p {
+        font-family: Monospace;
+        line-height: 200%;
+        vertical-align: middle;
+      }
+      @media screen {
+        .print-format {
+          width: 4in;
+          padding: 0.25in;
+          min-height: 8in;
+        }
+      }
+      @media print {
+        .print-format {
+          width: 4in;
+          padding: 0.25in;
+          min-height: 8in;
+        }
+      }
+      .text-right { text-align: right; }
+      .text-center { text-align: center; }
+      .table { width: 100%; border-collapse: collapse; }
+      .table th, .table td { padding: 2px; }
+      .no-border { border: none; }
+      .cart { margin-bottom: 10px; }
+      hr { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
+      .company-header { font-weight: bold; margin-bottom: 10px; }
+      .customer-info { margin-bottom: 10px; }
+      .items-table { margin-bottom: 15px; }
+      .totals-table { margin-bottom: 10px; }
+      .footer { margin-top: 15px; }
     </style>
   </head>
   <body class="print-format">
-    <div style="text-align:center; margin-bottom:0"><h5 style="margin:0; font-size:11px;">${invoice.is_duplicate ? "Duplicate" : "Original"}</h5></div>
-    <p style="margin-top:0">
-      <b>Invoice Status:</b> ${invoice.status || ""}<br>
-      <b>Receipt No:</b> ${invoice.name || ""}<br>
-      <b>Customer:</b> ${invoice.customer_name || invoice.customer || ""}<br>
-      <b>Mobile:</b> ${invoice.contact_mobile || ""}<br>
-      <b>Date:</b> ${invoice.posting_date || ""}
-      <b>Time:</b> ${invoice.posting_time || ""}<br>
-    </p>
-    <p style="margin-top:3px;"><b>Additional Note:</b> <strong>${invoice.posa_notes || ""}</strong></p>
-    <table cellpadding="0" cellspacing="0" style="width:100%">
-      <thead>
-        <tr><th width="50%"><b>Item</b></th><th width="25%" class="text-right"><b>Qty</b></th><th width="25%" class="text-right"><b>Amount</b></th></tr>
-      </thead>
-      <tbody>${itemsRows}</tbody>
-    </table>
-    <table cellpadding="0" cellspacing="0" style="width:100%">
-      <tbody>
-        <tr><td class="text-right" style="width:70%"><b>Total</b></td><td class="text-right">${invoice.total}</td></tr>
-        ${taxesRows}
-        ${discountRow}
-        <tr><td class="text-right" style="width:70%"><b>Grand Total</b></td><td class="text-right">${invoice.grand_total}</td></tr>
-        <tr><td class="text-right" style="width:75%"><b>Paid Amount</b></td><td class="text-right">${invoice.paid_amount}</td></tr>
-        ${changeRow}
-      </tbody>
-    </table>
-    <p class="text-center" style="margin-top:3px;">Thank you, please visit again.</p>
+    <div class="company-header text-center">
+      ${companyName}<br>
+      POS No: ${posNumber}
+    </div>
+    
+    <div class="customer-info">
+      <p>
+        <b>Customer:</b> ${invoice.customer_name || invoice.customer || ""}<br>
+        <b>Mobile:</b> ${invoice.contact_mobile || ""}<br>
+        <b>Date:</b> ${formatDate(invoice.posting_date)}<br>
+        <b>Time:</b> ${invoice.posting_time || ""}<br>
+        <b>Receipt No:</b> ${invoice.name || ""}<br>
+        <b>Status:</b> ${invoice.status || ""}
+      </p>
+    </div>
+
+    ${invoice.posa_notes ? `<p><b>Additional Note:</b> ${invoice.posa_notes}</p>` : ""}
+
+    <hr>
+    
+    <div class="items-table">
+      <table class="table table-condensed cart no-border">
+        <thead>
+          <tr>
+            <th width="50%">Item</th>
+            <th width="25%" class="text-right">Qty</th>
+            <th width="25%" class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${itemsRows}</tbody>
+      </table>
+    </div>
+
+    <div class="totals-table">
+      <table class="table table-condensed no-border">
+        <tbody>
+          <tr>
+            <td class="text-right" style="width: 70%">
+              Net Total
+            </td>
+            <td class="text-right">
+              ${formatCurrency(invoice.total, invoice.currency)}
+            </td>
+          </tr>
+          ${taxesRows}
+          ${discountRow}
+          <tr>
+            <td class="text-right" style="width: 75%">
+              <b>Grand Total</b>
+            </td>
+            <td class="text-right">
+              ${formatCurrency(invoice.grand_total, invoice.currency)}
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right" style="width: 75%">
+              <b>Paid Amount</b>
+            </td>
+            <td class="text-right">
+              ${formatCurrency(invoice.paid_amount, invoice.currency)}
+            </td>
+          </tr>
+          ${changeRow}
+          <tr>
+            <td class="text-right" style="width: 75%">
+              <b>Qty Total</b>
+            </td>
+            <td class="text-right">
+              ${qtyTotal}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <hr>
+    <div class="footer">
+      ${terms ? `<p>${terms}</p>` : ""}
+      <p class="text-center">Thank you, please visit again.</p>
+    </div>
   </body>
   </html>`;
 	return html;
 }
+
+function generatePOSPrintFormat(invoice, posProfile) {
+	const formatDate = (dateStr) => {
+		if (!dateStr) return "";
+		const date = new Date(dateStr);
+		return date.toLocaleDateString();
+	};
+
+	const formatTime = (timeStr) => {
+		if (!timeStr) return "";
+		return timeStr;
+	};
+
+	const itemsRows = (invoice.items || [])
+		.map((item) => {
+			const barcode = item.barcode || item.item_code || "";
+			
+			return `
+				<tr>
+					<td colspan="4">${item.item_name}<br>
+					<div style="text-align:right;">
+					${item.item_name}</div></td>
+				</tr>
+				<tr>
+					<td>${barcode}</td>
+					<td>${item.qty}</td>
+					<td>${formatCurrency(item.rate, invoice.currency)}</td>
+					<td>${formatCurrency(item.amount, invoice.currency)}</td>
+				</tr>
+			`;
+		})
+		.join("");
+
+	const paymentMethods = (invoice.payments || [])
+		.map((payment) => `Payment Method: ${payment.mode_of_payment}`)
+		.join('<br>');
+
+	const html = `<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Invoice ${invoice.name || ""}</title>
+	<style>
+		@import url('http://fonts.cdnfonts.com/css/vcr-osd-mono');
+		body {
+			font-family: 'VCR OSD Mono';
+			color: #000;
+			text-align: center;
+			display: flex;
+			justify-content: center;
+			font-size: 10px;
+		}
+		.address {
+			line-height: 100%;
+		}
+		.brand {
+			font-size: 20px;
+		}
+		.print-format td, .print-format th {
+			padding: 3px !important;
+		}
+		.address {
+			margin-top: 0px;
+		}
+		.bill {
+			width: 80mm;
+			margin: 5px auto;
+			box-shadow: 0 0 3px #aaa;
+			padding: 10px;
+			box-sizing: border-box;
+		}
+		.flex {
+			display: flex;
+		}
+		.justify-between {
+			justify-content: space-between;
+		}
+		.table {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		.table .header {
+			border-top: 3px dashed #000;
+			border-bottom: 3px dashed #000;
+		}
+		th {
+			color: black !important;
+		}
+		td {
+			color: black !important;
+		}
+		.table {
+			text-align: left;
+		}
+		.table .total td {
+			border-top: 2px dashed #000;
+			border-bottom: 2px dashed #000;
+		}
+		.table .net-amount td:first-of-type {
+			border-top: none;
+		}
+		.table .net-amount td {
+			border-top: 2px dashed #000;
+		}
+		.table .net-amount {
+			border-bottom: 2px dashed #000;
+		}
+		@media print {
+			.hidden-print,
+			.hidden-print * {
+				display: none !important;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="bill">
+		<div class="brand">
+			<img src="/files/YeshFresh_LOGO.PNG" alt="Company Logo" height="100px" width="280px"><br>
+			<b>
+				<!--سوق فلامينجو سوبر ماركت المركزي-->
+			</b>
+		</div>
+		<div class="address">
+			Salmiya, Block 10, Saba Street<br>
+			Phone No. : 60628166
+		</div>
+		${invoice.status === 'Paid' ? 
+			'<div class="invoice"><b>CASH INVOICE</b></div>' : 
+			'<div class="invoice"><b>CREDIT INVOICE</b></div>'
+		}
+		<div class="bill-details">
+			<div class="flex justify-between">
+				<div>Invoice No: ${invoice.name || ""}</div>
+			</div>
+			<div class="flex justify-between">
+				<div>Date: ${formatDate(invoice.posting_date)}</div>
+				<div>Time: ${formatTime(invoice.posting_time)}</div>
+			</div>
+		</div>
+		<table class="table" width="100%">
+			<tr class="header">
+				<th width="30%" class="td2">
+					Item &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+					الإ سم
+				</th>
+				<th width="22%" class="td2">
+					Qty &nbsp;
+					الكمية
+				</th>
+				<th width="22%" class="td2">
+					U/P &nbsp; &nbsp;
+					س\ و
+				</th>
+				<th width="26%" class="td2">
+					Amount
+					المجموع
+				</th>
+			</tr>
+			${itemsRows}
+		</table>
+		<table class="table" width="100%">
+			<tr class="total">
+				<td>Total</td>
+				<td>المجموع</td>
+				<td></td>
+				<td></td>
+				<td>${formatCurrency(invoice.total, invoice.currency)}</td>
+			</tr>
+			${invoice.discount_amount ? `
+			<tr>
+				<td>Discount</td>
+				<td>تخفيض</td>
+				<td></td>
+				<td></td>
+				<td>${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
+			</tr>
+			` : ""}
+			<tr class="net-amount">
+				<td>Net Amount</td>
+				<td colspan="3">
+					المجموع الإجمالي
+				</td>
+				<td>${formatCurrency(invoice.grand_total, invoice.currency)}</td>
+			</tr>
+			<tr>
+				<td>Paid Amount</td>
+				<td colspan="3">
+					المبلغ المدفوع
+				</td>
+				<td>${formatCurrency(invoice.paid_amount, invoice.currency)}</td>
+			</tr>
+			${invoice.change_amount ? `
+			<tr class="net-amount">
+				<td colspan="5" style="font-size:20px; text-align: center;"><b>Change Cash (${formatCurrency(invoice.change_amount, invoice.currency)})</b></td>
+			</tr>
+			` : ""}
+		</table>
+		
+		${paymentMethods}<br>
+		Username: ${posProfile?.name || "POS"} [Biller]<br>
+		Thank You ! Please visit again
+	</div>
+</body>
+</html>`;
+	
+	return html;
+}
+
+function formatCurrency(amount, currency = "USD") {
+	if (amount === null || amount === undefined) return "0.00";
+	const num = parseFloat(amount);
+	if (isNaN(num)) return "0.00";
+	return num.toFixed(2);
+}
+
+export { formatCurrency };

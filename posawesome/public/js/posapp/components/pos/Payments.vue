@@ -1374,7 +1374,13 @@ export default {
 		// Print invoice using a more detailed offline template
 		print_offline_invoice(invoice) {
 			if (!invoice) return;
-			const html = generateOfflineInvoiceHTML(invoice);
+			
+			// Debug information
+			console.log('Printing offline invoice:', invoice.name);
+			console.log('POS Profile:', this.pos_profile);
+			console.log('Print Format:', this.pos_profile?.print_format);
+			
+			const html = generateOfflineInvoiceHTML(invoice, this.pos_profile);
 			const win = window.open("", "_blank");
 			win.document.write(html);
 			win.document.close();
@@ -1623,7 +1629,6 @@ export default {
 				},
 			});
 		},
-		// Check if payment is M-Pesa C2B
 		is_mpesa_c2b_payment(payment) {
 			if (this.mpesa_modes.includes(payment.mode_of_payment) && payment.type === "Bank") {
 				payment.amount = 0;
@@ -1632,7 +1637,6 @@ export default {
 				return false;
 			}
 		},
-		// Open M-Pesa payment dialog
 		mpesa_c2b_dialog(payment) {
 			const data = {
 				company: this.pos_profile.company,
@@ -1641,7 +1645,6 @@ export default {
 			};
 			this.eventBus.emit("open_mpesa_payments", data);
 		},
-		// Set M-Pesa payment as customer credit
 		set_mpesa_payment(payment) {
 			this.pos_profile.use_customer_credit = true;
 			this.redeem_customer_credit = true;
@@ -1658,7 +1661,6 @@ export default {
 			this.clear_all_amounts();
 			this.customer_credit_dict.push(advance);
 		},
-		// Update delivery date after selection
 		update_delivery_date() {
 			this.invoice_doc.posa_delivery_date = this.formatDate(this.new_delivery_date);
 			// After setting delivery date, fetch addresses if not already loaded
@@ -1666,15 +1668,12 @@ export default {
 				this.get_addresses();
 			}
 		},
-		// Update purchase order date after selection
 		update_po_date() {
 			this.invoice_doc.po_date = this.formatDate(this.new_po_date);
 		},
-		// Update credit due date after selection
 		update_credit_due_date() {
 			this.invoice_doc.due_date = this.formatDate(this.new_credit_due_date);
 		},
-		// Apply preset or typed number of days to set due date
 		applyDuePreset(days) {
 			if (days === null || days === "" || isNaN(days)) {
 				return;
@@ -1685,12 +1684,10 @@ export default {
 			this.credit_due_days = parseInt(days, 10);
 			this.update_credit_due_date();
 		},
-		// Apply days entered in dialog
 		applyCustomDays() {
 			this.applyDuePreset(this.custom_days_value);
 			this.custom_days_dialog = false;
 		},
-		// Format date to YYYY-MM-DD
 		formatDate(date) {
 			if (!date) return null;
 			if (typeof date === "string") {
@@ -1727,14 +1724,12 @@ export default {
 			}
 			return date;
 		},
-		// Show paid amount info message
 		showPaidAmount() {
 			this.eventBus.emit("show_message", {
 				title: `Total Paid Amount: ${this.formatCurrency(this.total_payments)}`,
 				color: "info",
 			});
 		},
-		// Show diff payment info message
 		showDiffPayment() {
 			if (!this.invoice_doc) return;
 			this.eventBus.emit("show_message", {
@@ -1742,14 +1737,12 @@ export default {
 				color: "info",
 			});
 		},
-		// Show paid change info message
 		showPaidChange() {
 			this.eventBus.emit("show_message", {
 				title: `Paid Change: ${this.formatCurrency(this.paid_change)}`,
 				color: "info",
 			});
 		},
-		// Show credit change info message
 		showCreditChange(value) {
 			if (value > 0) {
 				this.credit_change = value;
@@ -1758,15 +1751,12 @@ export default {
 				this.credit_change = 0;
 			}
 		},
-		// Format currency value
 		formatCurrency(value) {
 			return this.$options.mixins[0].methods.formatCurrency.call(this, value, this.currency_precision);
 		},
-		// Get change amount for display
 		get_change_amount() {
 			return Math.max(0, this.total_payments - this.invoice_doc.grand_total);
 		},
-		// Sync any invoices stored offline and show pending/synced counts
 		async syncPendingInvoices() {
 			const pending = getPendingOfflineInvoiceCount();
 			if (pending) {
@@ -1777,7 +1767,6 @@ export default {
 				this.eventBus.emit("pending_invoices_changed", pending);
 			}
 			if (isOffline()) {
-				// Don't attempt to sync while offline; just update the counter
 				return;
 			}
 			const result = await syncOfflineInvoices();
@@ -1798,16 +1787,13 @@ export default {
 			this.eventBus.emit("pending_invoices_changed", getPendingOfflineInvoiceCount());
 		},
 		handleCreditSaleToggle() {
-			// Add any additional logic you want to execute when credit sale is toggled
 			console.log("Credit sale toggled:", this.is_credit_sale);
 			
-			// Force update the invoice credit sale flag
 			if (this.invoice_doc) {
 				this.invoice_doc.is_credit_sale = this.is_credit_sale;
 				console.log("Invoice credit sale flag set to:", this.invoice_doc.is_credit_sale);
 			}
 			
-			// If credit sale is enabled, clear all payment amounts immediately
 			if (this.is_credit_sale && this.invoice_doc && this.invoice_doc.payments) {
 				this.invoice_doc.payments.forEach((payment) => {
 					payment.amount = 0;
@@ -1822,11 +1808,9 @@ export default {
 	},
 	// Lifecycle hook: created
 	created() {
-		// Register keyboard shortcut for payment
 		document.addEventListener("keydown", this.shortPay.bind(this));
 		this.syncPendingInvoices();
 		this.eventBus.on("network-online", this.syncPendingInvoices);
-		// Also sync when the server connection is re-established
 		this.eventBus.on("server-online", this.syncPendingInvoices);
 		this.eventBus.on("register_pos_profile", (data) => {
 			this.pos_profile = data.pos_profile;
@@ -1846,10 +1830,8 @@ export default {
 			this.customer_info = data;
 		});
 	},
-	// Lifecycle hook: mounted
 	mounted() {
 		this.$nextTick(() => {
-			// Listen to various event bus events for POS actions
 			this.eventBus.on("send_invoice_doc_payment", (invoice_doc) => {
 				this.invoice_doc = invoice_doc;
 				const default_payment = this.invoice_doc.payments.find((payment) => payment.default === 1);
@@ -1858,12 +1840,10 @@ export default {
 				if (invoice_doc.is_return) {
 					this.is_return = true;
 					this.is_credit_return = false;
-					// Reset all payment amounts to zero for returns
 					invoice_doc.payments.forEach((payment) => {
 						payment.amount = 0;
 						payment.base_amount = 0;
 					});
-					// Set default payment to negative amount for returns
 					if (default_payment) {
 						const amount = invoice_doc.rounded_total || invoice_doc.grand_total;
 						default_payment.amount = -Math.abs(amount);
@@ -1872,7 +1852,6 @@ export default {
 						}
 					}
 				} else if (default_payment) {
-					// For regular invoices, set positive amount
 					default_payment.amount = this.flt(
 						invoice_doc.rounded_total || invoice_doc.grand_total,
 						this.currency_precision,
@@ -1880,7 +1859,6 @@ export default {
 					this.is_credit_return = false;
 				}
 				this.loyalty_amount = 0;
-				// Only get addresses if customer exists
 				if (invoice_doc.customer) {
 					this.get_addresses();
 				}
