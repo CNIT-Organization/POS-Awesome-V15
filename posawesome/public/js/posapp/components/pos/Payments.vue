@@ -1378,7 +1378,16 @@ export default {
 			// Debug information
 			console.log('Printing offline invoice:', invoice.name);
 			console.log('POS Profile:', this.pos_profile);
-			console.log('Print Format:', this.pos_profile?.print_format);
+			console.log('Print Format from POS Profile:', this.pos_profile?.print_format);
+			console.log('POS Profile Name:', this.pos_profile?.name);
+			console.log('Company:', this.pos_profile?.company);
+			
+			// Test: Force use of POS Print format for testing
+			if (!this.pos_profile?.print_format) {
+				console.log('No print format found in POS Profile, using default format');
+			} else {
+				console.log('Print format found:', this.pos_profile.print_format);
+			}
 			
 			const html = generateOfflineInvoiceHTML(invoice, this.pos_profile);
 			const win = window.open("", "_blank");
