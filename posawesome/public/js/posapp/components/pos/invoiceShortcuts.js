@@ -1243,10 +1243,10 @@ export default {
 
 	editPrice() {
 		if (this.items && this.items.length > 0) {
-			const lastItem = this.items[this.items.length - 1];
+			const firstItem = this.items[0];
 			
-			if (!this.expanded.includes(lastItem.posa_row_id)) {
-				this.expanded = [lastItem.posa_row_id];
+			if (!this.expanded.includes(firstItem.posa_row_id)) {
+				this.expanded = [firstItem.posa_row_id];
 			}
 			
 			this.$nextTick(() => {

@@ -56,14 +56,14 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
 
 	const discountRow = invoice.discount_amount
 		? `<tr>
-      <td class="text-right" style="width:75%">Discount</td>
+      <td class="text-right" style="width:75%">Discount / تخفيض</td>
       <td class="text-right">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
     </tr>`
 		: "";
 
 	const changeRow = invoice.change_amount
 		? `<tr>
-      <td class="text-right" style="width:75%">Change Amount</td>
+      <td class="text-right" style="width:75%">Change Amount / المبلغ المتبقي</td>
       <td class="text-right">${formatCurrency(invoice.change_amount, invoice.currency)}</td>
     </tr>`
 		: "";
@@ -119,21 +119,21 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
   <body class="print-format">
     <div class="company-header text-center">
       ${companyName}<br>
-      POS No: ${posNumber}
+      POS No / رقم النقطة: ${posNumber}
     </div>
     
     <div class="customer-info">
       <p>
-        <b>Customer:</b> ${invoice.customer_name || invoice.customer || ""}<br>
-        <b>Mobile:</b> ${invoice.contact_mobile || ""}<br>
-        <b>Date:</b> ${formatDate(invoice.posting_date)}<br>
-        <b>Time:</b> ${invoice.posting_time || ""}<br>
-        <b>Receipt No:</b> ${invoice.name || ""}<br>
-        <b>Status:</b> ${invoice.status || ""}
+        <b>Customer / العميل:</b> ${invoice.customer_name || invoice.customer || ""}<br>
+        <b>Mobile / الجوال:</b> ${invoice.contact_mobile || ""}<br>
+        <b>Date / التاريخ:</b> ${formatDate(invoice.posting_date)}<br>
+        <b>Time / الوقت:</b> ${invoice.posting_time || ""}<br>
+        <b>Receipt No / رقم الإيصال:</b> ${invoice.name || ""}<br>
+        <b>Status / الحالة:</b> ${invoice.status || ""}
       </p>
     </div>
 
-    ${invoice.posa_notes ? `<p><b>Additional Note:</b> ${invoice.posa_notes}</p>` : ""}
+    ${invoice.posa_notes ? `<p><b>Additional Note / ملاحظة إضافية:</b> ${invoice.posa_notes}</p>` : ""}
 
     <hr>
     
@@ -141,9 +141,9 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
       <table class="table table-condensed cart no-border">
         <thead>
           <tr>
-            <th width="50%">Item</th>
-            <th width="25%" class="text-right">Qty</th>
-            <th width="25%" class="text-right">Amount</th>
+            <th width="50%">Item / الصنف</th>
+            <th width="25%" class="text-right">Qty / الكمية</th>
+            <th width="25%" class="text-right">Amount / المبلغ</th>
           </tr>
         </thead>
         <tbody>${itemsRows}</tbody>
@@ -155,7 +155,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
         <tbody>
           <tr>
             <td class="text-right" style="width: 70%">
-              Net Total
+              Net Total / المجموع الصافي
             </td>
             <td class="text-right">
               ${formatCurrency(invoice.total, invoice.currency)}
@@ -165,7 +165,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
           ${discountRow}
           <tr>
             <td class="text-right" style="width: 75%">
-              <b>Grand Total</b>
+              <b>Grand Total / المجموع الإجمالي</b>
             </td>
             <td class="text-right">
               ${formatCurrency(invoice.grand_total, invoice.currency)}
@@ -173,7 +173,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
           </tr>
           <tr>
             <td class="text-right" style="width: 75%">
-              <b>Paid Amount</b>
+              <b>Paid Amount / المبلغ المدفوع</b>
             </td>
             <td class="text-right">
               ${formatCurrency(invoice.paid_amount, invoice.currency)}
@@ -182,7 +182,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
           ${changeRow}
           <tr>
             <td class="text-right" style="width: 75%">
-              <b>Qty Total</b>
+              <b>Qty Total / إجمالي الكمية</b>
             </td>
             <td class="text-right">
               ${qtyTotal}
@@ -195,7 +195,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
     <hr>
     <div class="footer">
       ${terms ? `<p>${terms}</p>` : ""}
-      <p class="text-center">Thank you, please visit again.</p>
+      <p class="text-center">Thank you, please visit again.<br>شكراً لك، يرجى زيارتنا مرة أخرى.</p>
     </div>
   </body>
   </html>`;
