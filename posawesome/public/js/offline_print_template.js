@@ -1,7 +1,7 @@
 export default function generateOfflineInvoiceHTML(invoice, posProfile = null, customFormat = null) {
 	if (!invoice) return "";
 
-	const companyName = posProfile?.company || invoice.company || "Company Name";
+	const companyName = posProfile?.company || invoice.company || "YESH FRESH";
 	const posNumber = posProfile?.name || invoice.pos_profile || "POS";
 	const letterHead = posProfile?.letter_head;
 	const terms = posProfile?.tc_name || invoice.terms || "";
@@ -220,15 +220,13 @@ function generatePOSPrintFormat(invoice, posProfile) {
 			
 			return `
 				<tr>
-					<td colspan="4">${item.item_name}<br>
-					<div style="text-align:right;">
-					${item.item_name}</div></td>
+					<td colspan="4" style="font-weight: bold;">${item.item_name || item.item_code}</td>
 				</tr>
 				<tr>
-					<td>${barcode}</td>
-					<td>${item.qty}</td>
-					<td>${formatCurrency(item.rate, invoice.currency)}</td>
-					<td>${formatCurrency(item.amount, invoice.currency)}</td>
+					<td style="font-size: 9px;">${barcode}</td>
+					<td style="text-align: center;">${item.qty}</td>
+					<td style="text-align: right;">${formatCurrency(item.rate, invoice.currency)}</td>
+					<td style="text-align: right;">${formatCurrency(item.amount, invoice.currency)}</td>
 				</tr>
 			`;
 		})
@@ -308,6 +306,27 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		.table .net-amount {
 			border-bottom: 2px dashed #000;
 		}
+		.amount-column {
+			text-align: right;
+			padding-right: 5px;
+		}
+		.table td {
+			vertical-align: top;
+			padding: 2px 3px;
+		}
+		.table th {
+			padding: 3px;
+			font-weight: bold;
+		}
+		.brand {
+			margin-bottom: 10px;
+		}
+		.brand b {
+			font-size: 18px;
+		}
+		.brand small {
+			font-size: 12px;
+		}
 		@media print {
 			.hidden-print,
 			.hidden-print * {
@@ -319,10 +338,8 @@ function generatePOSPrintFormat(invoice, posProfile) {
 <body>
 	<div class="bill">
 		<div class="brand">
-			<img src="/files/YeshFresh_LOGO.PNG" alt="Company Logo" height="100px" width="280px"><br>
-			<b>
-				<!--سوق فلامينجو سوبر ماركت المركزي-->
-			</b>
+			<b>YESH FRESH</b><br>
+			<small style="font-size: 10px;">سوق فلامينجو سوبر ماركت المركزي</small>
 		</div>
 		<div class="address">
 			Salmiya, Block 10, Saba Street<br>
@@ -364,38 +381,34 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		</table>
 		<table class="table" width="100%">
 			<tr class="total">
-				<td>Total</td>
-				<td>المجموع</td>
-				<td></td>
-				<td></td>
-				<td>${formatCurrency(invoice.total, invoice.currency)}</td>
+				<td width="40%">Total</td>
+				<td width="40%">المجموع</td>
+				<td width="20%"></td>
+				<td width="20%" class="amount-column">${formatCurrency(invoice.total, invoice.currency)}</td>
 			</tr>
-			${invoice.discount_amount ? `
+			${invoice.discount_amount && parseFloat(invoice.discount_amount) > 0 ? `
 			<tr>
 				<td>Discount</td>
 				<td>تخفيض</td>
 				<td></td>
-				<td></td>
-				<td>${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
+				<td class="amount-column">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
 			</tr>
 			` : ""}
 			<tr class="net-amount">
 				<td>Net Amount</td>
-				<td colspan="3">
-					المجموع الإجمالي
-				</td>
-				<td>${formatCurrency(invoice.grand_total, invoice.currency)}</td>
+				<td>المجموع الإجمالي</td>
+				<td></td>
+				<td class="amount-column">${formatCurrency(invoice.grand_total, invoice.currency)}</td>
 			</tr>
 			<tr>
 				<td>Paid Amount</td>
-				<td colspan="3">
-					المبلغ المدفوع
-				</td>
-				<td>${formatCurrency(invoice.paid_amount, invoice.currency)}</td>
+				<td>المبلغ المدفوع</td>
+				<td></td>
+				<td class="amount-column">${formatCurrency(invoice.paid_amount, invoice.currency)}</td>
 			</tr>
-			${invoice.change_amount ? `
+			${(parseFloat(invoice.paid_amount) > parseFloat(invoice.grand_total)) ? `
 			<tr class="net-amount">
-				<td colspan="5" style="font-size:20px; text-align: center;"><b>Change Cash (${formatCurrency(invoice.change_amount, invoice.currency)})</b></td>
+				<td colspan="4" style="font-size:16px; text-align: center;"><b>Change Amount: ${formatCurrency(parseFloat(invoice.paid_amount) - parseFloat(invoice.grand_total), invoice.currency)}</b></td>
 			</tr>
 			` : ""}
 		</table>
@@ -414,7 +427,8 @@ function formatCurrency(amount, currency = "USD") {
 	if (amount === null || amount === undefined) return "0.00";
 	const num = parseFloat(amount);
 	if (isNaN(num)) return "0.00";
-	return num.toFixed(2);
+	// Force 2 decimal places
+	return Number(num).toFixed(2);
 }
 
 export { formatCurrency };
