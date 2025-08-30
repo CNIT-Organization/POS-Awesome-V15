@@ -339,7 +339,7 @@ function generatePOSPrintFormat(invoice, posProfile) {
 	<div class="bill">
 		<div class="brand">
 			<b>YESH FRESH</b><br>
-			<small style="font-size: 10px;">سوق فلامينجو سوبر ماركت المركزي</small>
+			<small style="font-size: 10px;">نعم الطازج</small>
 		</div>
 		<div class="address">
 			Salmiya, Block 10, Saba Street<br>
