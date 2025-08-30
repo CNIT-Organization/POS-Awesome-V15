@@ -424,11 +424,11 @@ function generatePOSPrintFormat(invoice, posProfile) {
 }
 
 function formatCurrency(amount, currency = "USD") {
-	if (amount === null || amount === undefined) return "0.00";
+	if (amount === null || amount === undefined) return "0.000";
 	const num = parseFloat(amount);
-	if (isNaN(num)) return "0.00";
-	// Force 2 decimal places
-	return Number(num).toFixed(2);
+	if (isNaN(num)) return "0.000";
+	// Force 3 decimal places
+	return Number(num).toFixed(3);
 }
 
 export { formatCurrency };
