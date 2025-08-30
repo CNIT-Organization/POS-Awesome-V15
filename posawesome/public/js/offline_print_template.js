@@ -1,6 +1,14 @@
 export default function generateOfflineInvoiceHTML(invoice, posProfile = null, customFormat = null) {
 	if (!invoice) return "";
 
+	// Calculate paid amount from payments if not already set
+	if (!invoice.paid_amount && invoice.payments && Array.isArray(invoice.payments)) {
+		invoice.paid_amount = invoice.payments.reduce((total, payment) => {
+			return total + (parseFloat(payment.amount) || 0);
+		}, 0);
+		console.log('Calculated paid_amount from payments:', invoice.paid_amount);
+	}
+
 	const companyName = posProfile?.company || invoice.company || "YESH FRESH";
 	const posNumber = posProfile?.name || invoice.pos_profile || "POS";
 	const letterHead = posProfile?.letter_head;
@@ -203,6 +211,14 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
 }
 
 function generatePOSPrintFormat(invoice, posProfile) {
+	// Calculate paid amount from payments if not already set
+	if (!invoice.paid_amount && invoice.payments && Array.isArray(invoice.payments)) {
+		invoice.paid_amount = invoice.payments.reduce((total, payment) => {
+			return total + (parseFloat(payment.amount) || 0);
+		}, 0);
+		console.log('POS Print - Calculated paid_amount from payments:', invoice.paid_amount);
+	}
+
 	const formatDate = (dateStr) => {
 		if (!dateStr) return "";
 		const date = new Date(dateStr);
