@@ -138,6 +138,15 @@ export default {
 					} else {
 						const data = getOpeningStorage();
 						if (data) {
+							// Log POS profile settings for offline mode debugging
+							console.log("Offline Mode - POS Profile Settings:", {
+								name: data.pos_profile.name,
+								currency: data.pos_profile.currency,
+								disable_rounded_total: data.pos_profile.disable_rounded_total,
+								posa_decimal_precision: data.pos_profile.posa_decimal_precision,
+								print_format: data.pos_profile.print_format
+							});
+							
 							this.pos_profile = data.pos_profile;
 							this.pos_opening_shift = data.pos_opening_shift;
 							this.get_offers(this.pos_profile.name);
@@ -157,6 +166,15 @@ export default {
 				.catch(() => {
 					const data = getOpeningStorage();
 					if (data) {
+						// Log POS profile settings for offline mode debugging
+						console.log("Offline Mode - POS Profile Settings:", {
+							name: data.pos_profile.name,
+							currency: data.pos_profile.currency,
+							disable_rounded_total: data.pos_profile.disable_rounded_total,
+							posa_decimal_precision: data.pos_profile.posa_decimal_precision,
+							print_format: data.pos_profile.print_format
+						});
+						
 						this.pos_profile = data.pos_profile;
 						this.pos_opening_shift = data.pos_opening_shift;
 						this.get_offers(this.pos_profile.name);
@@ -188,7 +206,7 @@ export default {
 					if (r.message) {
 						this.eventBus.emit("open_ClosingDialog", r.message);
 					} else {
-						// console.log(r);
+						// No action needed
 					}
 				});
 		},
@@ -219,7 +237,7 @@ export default {
 						
 						this.check_opening_entry();
 					} else {
-						console.log(r);
+						// No action needed
 					}
 				});
 		},

@@ -20,11 +20,7 @@ export default {
 		this.expanded = this.expanded.filter((id) => id !== item.posa_row_id);
 	},
 
-       add_item(item) {
-               console.log("Invoice.add_item received", {
-                       code: item.item_code,
-                       rate: item.rate,
-               });
+       		add_item(item) {
                if (!item.uom) {
                        item.uom = item.stock_uom;
                }
@@ -75,20 +71,12 @@ export default {
 				new_item.qty = -Math.abs(new_item.qty || 1);
 			}
       
-                       this.items.unshift(new_item);
-                       // Replace the newly inserted item at index 0 to ensure
-                       // Vue reactivity and avoid overwriting existing rows
-                       this.items[0] = { ...new_item };
-                       console.log("Item inserted at", 0, {
-                               code: new_item.item_code,
-                               rate: new_item.rate,
-                       });
-                       // Force update of item rates when item is first added
-                       this.update_item_detail(new_item, true);
-                       console.log("update_item_detail called", {
-                               code: new_item.item_code,
-                               rate: new_item.rate,
-                       });
+                       			this.items.unshift(new_item);
+			// Replace the newly inserted item at index 0 to ensure
+			// Vue reactivity and avoid overwriting existing rows
+			this.items[0] = { ...new_item };
+			// Force update of item rates when item is first added
+			this.update_item_detail(new_item, true);
                        // Apply UOM conversion immediately
 			if (new_item.uom && new_item.uom !== new_item.stock_uom) {
 				this.calc_uom(new_item, new_item.uom);
@@ -1097,16 +1085,11 @@ export default {
 	// Show payment dialog after validation and processing
 	async show_payment() {
 		try {
-			console.log("Starting show_payment process");
-			console.log("Invoice state before payment:", {
-				invoiceType: this.invoiceType,
-				is_return: this.invoice_doc ? this.invoice_doc.is_return : false,
-				items_count: this.items.length,
-				customer: this.customer,
-			});
+	
+
 
 			if (!this.customer) {
-				console.log("Customer validation failed");
+
 				this.eventBus.emit("show_message", {
 					title: __(`Select a customer`),
 					color: "error",
@@ -1115,7 +1098,7 @@ export default {
 			}
 
 			if (!this.items.length) {
-				console.log("Items validation failed - no items");
+
 				this.eventBus.emit("show_message", {
 					title: __(`Select items to sell`),
 					color: "error",
@@ -1123,12 +1106,12 @@ export default {
 				return;
 			}
 
-			console.log("Basic validations passed, proceeding to main validation");
+
 			const isValid = this.validate();
-			console.log("Main validation result:", isValid);
+
 
 			if (!isValid) {
-				console.log("Main validation failed");
+	
 				return;
 			}
 
@@ -1139,18 +1122,18 @@ export default {
 				!this.new_delivery_date &&
 				!this.invoice_doc.posa_delivery_date
 			) {
-				console.log("Building local Sales Order doc for payment");
+
 				invoice_doc = this.get_invoice_doc();
 			} else if (this.invoice_doc.doctype == "Sales Order" && this.invoiceType === "Invoice") {
-				console.log("Processing Sales Order payment");
+
 				invoice_doc = await this.process_invoice_from_order();
 			} else {
-				console.log("Processing regular invoice");
+
 				invoice_doc = this.process_invoice();
 			}
 
 			if (!invoice_doc) {
-				console.log("Failed to process invoice");
+	
 				return;
 			}
 
@@ -1944,9 +1927,9 @@ export default {
 					break;
 
 				case "discount_amount":
-					console.log("[calc_prices] Event Target ID:", fieldId);
-					console.log("[calc_prices] RAW value received by function:", value); // <-- ADDED THIS
-					console.log("[calc_prices] Original item.price_list_rate:", item.price_list_rate);
+			
+
+
 					console.log(
 						"[calc_prices] Converted price_list_rate for calc:",
 						converted_price_list_rate,

@@ -953,14 +953,33 @@ export default {
 				// Use configured precision without applying rounding
 				return this.flt(amount, this.currency_precision);
 			}
-			// If multi-currency is enabled and selected currency is different from base currency
-			const baseCurrency = this.price_list_currency || this.pos_profile.currency;
-			if (this.pos_profile.posa_allow_multi_currency && this.selected_currency !== baseCurrency) {
-				// For multi-currency, just keep 2 decimal places without rounding to nearest integer
-				return this.flt(amount, 2);
+			
+			// For currency amounts, we need to round to the smallest currency unit
+			// For most currencies, this is 0.01 (2 decimal places)
+			// For some currencies like KWD (Kuwaiti Dinar), it might be 0.001 (3 decimal places)
+			let smallestUnit = 0.01; // Default to 2 decimal places
+			
+			// Check if we're dealing with KWD (Kuwaiti Dinar) which uses 3 decimal places
+			if (this.pos_profile.currency === 'KWD' || this.selected_currency === 'KWD') {
+				smallestUnit = 0.001;
 			}
-			// For base currency or when multi-currency is disabled, round to nearest integer
-			return Math.round(amount);
+			// Check if we're dealing with currencies that use 3 decimal places
+			else if (this.currency_precision >= 3) {
+				smallestUnit = 0.001;
+			}
+			
+			// Special handling for KWD: round to nearest 0.001
+			if (this.pos_profile.currency === 'KWD' || this.selected_currency === 'KWD') {
+				// For KWD, round to 3 decimal places
+				const roundedAmount = Math.round(amount * 1000) / 1000;
+				return this.flt(roundedAmount, 3);
+			}
+			
+			// Round to the nearest smallest currency unit
+			const multiplier = 1 / smallestUnit;
+			const roundedAmount = Math.round(amount * multiplier) / multiplier;
+			
+			return this.flt(roundedAmount, this.currency_precision);
 		},
 
 		// Increase quantity of an item (handles return logic)

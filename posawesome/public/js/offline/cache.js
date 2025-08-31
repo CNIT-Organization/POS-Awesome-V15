@@ -130,6 +130,7 @@ export function getOpeningStorage() {
 
 export function setOpeningStorage(data) {
 	try {
+		// Store the data exactly as it comes from the server - no manipulation
 		memory.pos_opening_storage = JSON.parse(JSON.stringify(data));
 		persist("pos_opening_storage", memory.pos_opening_storage);
 	} catch (e) {
