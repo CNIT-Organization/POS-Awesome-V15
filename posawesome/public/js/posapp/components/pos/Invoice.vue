@@ -965,7 +965,7 @@ export default {
 			}
 			// Check if we're dealing with currencies that use 3 decimal places
 			else if (this.currency_precision >= 3) {
-				smallestUnit = 0.001;
+				smallestUnit = 0.01; // Use 0.01 (cent) rounding for 3+ decimal currencies
 			}
 			
 			// Special handling for KWD: round to nearest 0.001
@@ -975,9 +975,9 @@ export default {
 				return this.flt(roundedAmount, 3);
 			}
 			
-			// Round to the nearest smallest currency unit
+			// Round DOWN to the nearest smallest currency unit (minus rounding)
 			const multiplier = 1 / smallestUnit;
-			const roundedAmount = Math.round(amount * multiplier) / multiplier;
+			const roundedAmount = Math.floor(amount * multiplier) / multiplier;
 			
 			return this.flt(roundedAmount, this.currency_precision);
 		},
