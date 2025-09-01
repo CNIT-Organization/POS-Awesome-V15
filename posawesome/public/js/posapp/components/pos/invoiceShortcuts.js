@@ -93,6 +93,53 @@ export default {
 		}
 	},
 
+	shortOpenCashDrawer(e) {
+		if (e.key === "Home") {
+			e.preventDefault();
+			e.stopPropagation();
+			this.openCashDrawer();
+		}
+	},
+
+	async openCashDrawer() {
+		try {
+			const result = await frappe.call({
+				method: "posawesome.posawesome.api.invoices.open_cash_drawer",
+				args: {},
+			});
+			if (result.message && result.message.success) {
+				// Send the HTML content to printer to trigger cash drawer
+				const printWindow = window.open("", "_blank", "width=1,height=1,scrollbars=no,resizable=no");
+				printWindow.document.write(result.message.html_content);
+				printWindow.document.close();
+				
+				// Auto-print and close immediately
+				setTimeout(() => {
+					printWindow.focus();
+					printWindow.print();
+					setTimeout(() => {
+						printWindow.close();
+					}, 100);
+				}, 50);
+				
+				this.eventBus.emit("show_message", { 
+					title: __("Cash drawer opened successfully"), 
+					color: "success" 
+				});
+			} else {
+				this.eventBus.emit("show_message", { 
+					title: __("Failed to open cash drawer"), 
+					color: "error" 
+				});
+			}
+		} catch (error) {
+			this.eventBus.emit("show_message", { 
+				title: __("Error opening cash drawer"), 
+				color: "error" 
+			});
+		}
+	},
+
 	/**
 	 * F4 Shortcut: Cash payment and print
 	 * This shortcut should always use silent printing for better cashier experience

@@ -332,11 +332,18 @@ export default {
 				});
 				if (result.message && result.message.success) {
 					// Send the HTML content to printer to trigger cash drawer
-					const printWindow = window.open("", "_blank");
+					const printWindow = window.open("", "_blank", "width=1,height=1,scrollbars=no,resizable=no");
 					printWindow.document.write(result.message.html_content);
 					printWindow.document.close();
-					printWindow.focus();
-					printWindow.print();
+					
+					// Auto-print and close immediately
+					setTimeout(() => {
+						printWindow.focus();
+						printWindow.print();
+						setTimeout(() => {
+							printWindow.close();
+						}, 100);
+					}, 50);
 					
 					this.showMessage({ title: this.__("Cash drawer opened successfully"), color: "success" });
 				} else {

@@ -1214,6 +1214,7 @@ export default {
 		document.addEventListener("keydown", this.shortEditPrice.bind(this));
 		document.addEventListener("keydown", this.shortEditQuantity.bind(this));
 		document.addEventListener("keydown", this.shortShowShortcutsHelp.bind(this));
+		document.addEventListener("keydown", this.shortOpenCashDrawer.bind(this));
 	},
 	// Remove global keyboard shortcuts when component is unmounted
 	unmounted() {
@@ -1227,6 +1228,7 @@ export default {
 		document.removeEventListener("keydown", this.shortEditPrice);
 		document.removeEventListener("keydown", this.shortEditQuantity);
 		document.removeEventListener("keydown", this.shortShowShortcutsHelp);
+		document.removeEventListener("keydown", this.shortOpenCashDrawer);
 	},
 	watch: invoiceWatchers,
 };

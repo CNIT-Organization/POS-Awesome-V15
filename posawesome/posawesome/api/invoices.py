@@ -728,23 +728,30 @@ def open_cash_drawer():
 		<head>
 			<title>Cash Drawer</title>
 			<style>
+				@page { 
+					size: 80mm 10mm; 
+					margin: 0; 
+				}
 				body { 
 					margin: 0; 
 					padding: 0; 
-					font-size: 1px; 
-					color: white; 
-					background: white;
+					font-size: 0px; 
+					line-height: 0px; 
+					color: transparent; 
+					background: transparent;
+					height: 10mm;
+					overflow: hidden;
 				}
 				@media print {
 					body { 
 						font-size: 0px; 
 						line-height: 0px; 
+						height: 10mm;
 					}
 				}
 			</style>
 		</head>
 		<body>
-			<!-- Empty content to trigger print without visible output -->
 		</body>
 		</html>
 		"""
