@@ -17,7 +17,8 @@ export default {
 			const rate = flt(item.rate);
 			sum += qty * rate;
 		});
-		return this.flt(sum, this.currency_precision);
+		// Use roundAmount for consistency with individual item rounding
+		return this.roundAmount ? this.roundAmount(sum) : this.flt(sum, this.currency_precision);
 	},
 	// Calculate subtotal after discounts and delivery charges
 	subtotal() {
@@ -38,7 +39,8 @@ export default {
 		const delivery_charges = this.flt(this.delivery_charges_rate);
 		sum += delivery_charges;
 
-		return this.flt(sum, this.currency_precision);
+		// Use roundAmount for consistency with individual item rounding
+		return this.roundAmount ? this.roundAmount(sum) : this.flt(sum, this.currency_precision);
 	},
 	// Calculate total discount amount for all items
 	total_items_discount_amount() {

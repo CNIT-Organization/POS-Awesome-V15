@@ -944,12 +944,11 @@ export default {
 				return result;
 			}
 			
-			// For precision 3, always round up to the next 0.001 increment
+			// For precision 3, round to nearest 0.005 increment
 			if (this.currency_precision === 3) {
-				const multiplier = 1000;
-				// Add a tiny amount to ensure proper rounding for exact values
-				const adjustedAmount = amount + 0.0000001;
-				const roundedAmount = Math.ceil(adjustedAmount * multiplier) / multiplier;
+				// Round to nearest 0.005 (200 increments per unit)
+				const multiplier = 200;
+				const roundedAmount = Math.round(amount * multiplier) / multiplier;
 				// Don't use flt here as it applies banker's rounding which undoes our work
 				const result = Number(roundedAmount.toFixed(3));
 				console.log("roundAmount (precision 3):", amount, "->", roundedAmount, "->", result);
