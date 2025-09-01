@@ -887,10 +887,22 @@ export default {
 				return;
 			}
 
-			// Update invoice_doc with current currency info (same as show_payment)
-			invoice_doc.currency = this.selected_currency || this.pos_profile.currency;
-			invoice_doc.conversion_rate = this.conversion_rate || 1;
-			invoice_doc.plc_conversion_rate = this.exchange_rate || 1;
+			// Update totals on the client side to use proper rounding (same as show_payment)
+			invoice_doc.total = this.Total;
+			invoice_doc.grand_total = this.subtotal;
+
+			if (this.pos_profile.disable_rounded_total) {
+				invoice_doc.rounded_total = this.flt(this.subtotal, this.currency_precision);
+			} else {
+				invoice_doc.rounded_total = this.roundAmount(this.subtotal);
+			}
+			invoice_doc.base_total = this.Total * (1 / this.exchange_rate || 1);
+			invoice_doc.base_grand_total = this.subtotal * (1 / this.exchange_rate || 1);
+			if (this.pos_profile.disable_rounded_total) {
+				invoice_doc.base_rounded_total = this.flt(invoice_doc.base_grand_total, this.currency_precision);
+			} else {
+				invoice_doc.base_rounded_total = this.roundAmount(invoice_doc.base_grand_total);
+			}
 
 			// Check if this is a return invoice (same logic as show_payment)
 			if (this.isReturnInvoice || invoice_doc.is_return) {
@@ -944,21 +956,20 @@ export default {
 				);
 				
 				if (cashPayment) {
-					// Use the same logic as the regular payment flow
-					// The server has already calculated the correct totals with taxes and rounding
+					// Use client-side calculated totals with proper rounding
 					let finalPaymentAmount;
-					if (invoice_doc.disable_rounded_total) {
+					if (this.pos_profile.disable_rounded_total) {
 						// No rounding: use grand_total
-						finalPaymentAmount = this.flt(invoice_doc.grand_total, 3);
+						finalPaymentAmount = this.flt(invoice_doc.grand_total, this.currency_precision);
 					} else {
 						// With rounding: use rounded_total
-						finalPaymentAmount = this.flt(invoice_doc.rounded_total, 3);
+						finalPaymentAmount = this.roundAmount(invoice_doc.grand_total);
 					}
 					
-					console.log("Setting cash payment using server-calculated totals:");
-					console.log("- grand_total (server):", invoice_doc.grand_total);
-					console.log("- rounded_total (server):", invoice_doc.rounded_total);
-					console.log("- disable_rounded_total:", invoice_doc.disable_rounded_total);
+					console.log("Setting cash payment using client-calculated totals:");
+					console.log("- grand_total (client):", invoice_doc.grand_total);
+					console.log("- rounded_total (client):", invoice_doc.rounded_total);
+					console.log("- disable_rounded_total:", this.pos_profile.disable_rounded_total);
 					console.log("- final payment amount:", finalPaymentAmount);
 					
 					cashPayment.amount = finalPaymentAmount;
@@ -975,11 +986,11 @@ export default {
 				}
 			}
 
-			console.log("Invoice prepared using server method, submitting directly...");
-			console.log("Final invoice amounts (from server):");
+			console.log("Invoice prepared using client-side method, submitting directly...");
+			console.log("Final invoice amounts (from client):");
 			console.log("- grand_total:", invoice_doc.grand_total);
 			console.log("- rounded_total:", invoice_doc.rounded_total);
-			console.log("- disable_rounded_total:", invoice_doc.disable_rounded_total);
+			console.log("- disable_rounded_total:", this.pos_profile.disable_rounded_total);
 			console.log("- write_off_amount:", invoice_doc.write_off_amount);
 			console.log("- paid_amount:", invoice_doc.paid_amount);
 			console.log("- cash payment amount:", invoice_doc.payments ? invoice_doc.payments.find(p => p.default)?.amount : "No cash payment");

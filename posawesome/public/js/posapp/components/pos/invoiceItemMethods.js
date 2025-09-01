@@ -764,7 +764,7 @@ export default {
 				item.qty = flt(updatedData.qty);
 				item.rate = flt(updatedData.rate);
 				item.uom = updatedData.uom;
-				item.amount = flt(updatedData.qty) * flt(updatedData.rate);
+				item.amount = this.roundAmount(flt(updatedData.qty) * flt(updatedData.rate));
 				item.conversion_factor = updatedData.conversion_factor;
 				item.serial_no = updatedData.serial_no;
 				item.discount_percentage = flt(updatedData.discount_percentage);
@@ -842,7 +842,7 @@ export default {
 					item.base_price_list_rate || flt(item.price_list_rate / this.exchange_rate);
 
 				// Calculate amounts
-				new_item.amount = flt(item.qty) * new_item.rate; // Amount in USD
+				new_item.amount = this.roundAmount(flt(item.qty) * new_item.rate); // Amount in USD
 				new_item.base_amount = new_item.amount / this.exchange_rate; // Convert to base currency
 
 				// Handle discount amount
@@ -855,7 +855,7 @@ export default {
 				new_item.base_rate = item.base_rate || flt(item.rate);
 				new_item.price_list_rate = flt(item.price_list_rate);
 				new_item.base_price_list_rate = item.base_price_list_rate || flt(item.price_list_rate);
-				new_item.amount = flt(item.qty) * new_item.rate;
+				new_item.amount = this.roundAmount(flt(item.qty) * new_item.rate);
 				new_item.base_amount = new_item.amount;
 				new_item.discount_amount = flt(item.discount_amount);
 				new_item.base_discount_amount = item.base_discount_amount || flt(item.discount_amount);
@@ -1142,31 +1142,31 @@ export default {
 			invoice_doc.conversion_rate = this.conversion_rate || 1;
 			invoice_doc.plc_conversion_rate = this.exchange_rate || 1;
 
-			// Preserve totals calculated on the server to ensure taxes are included
-			// The process_invoice method already updates the invoice with taxes and
-			// totals via the backend. Overriding those values here caused the
-			// payment dialog to display amounts without taxes applied. Simply use
-			// the values returned from the server instead of recalculating them on
-			// the client side.
+			// Update totals on the client side to use proper rounding
+			invoice_doc.total = this.Total;
+			invoice_doc.grand_total = this.subtotal;
 
-			// Update totals on the client has been disabled. The original code is
-			// kept below for reference and is intentionally commented out to avoid
-			// overriding the server calculated values.
-			// invoice_doc.total = this.Total;
-			// invoice_doc.grand_total = this.subtotal;
+			console.log("show_payment - before rounding:");
+			console.log("- subtotal:", this.subtotal);
+			console.log("- currency_precision:", this.currency_precision);
+			console.log("- disable_rounded_total:", this.pos_profile.disable_rounded_total);
 
-			// if (this.pos_profile.disable_rounded_total) {
-			//   invoice_doc.rounded_total = flt(this.subtotal, this.currency_precision);
-			// } else {
-			//   invoice_doc.rounded_total = this.roundAmount(this.subtotal);
-			// }
-			// invoice_doc.base_total = this.Total * (1 / this.exchange_rate || 1);
-			// invoice_doc.base_grand_total = this.subtotal * (1 / this.exchange_rate || 1);
-			// if (this.pos_profile.disable_rounded_total) {
-			//   invoice_doc.base_rounded_total = flt(invoice_doc.base_grand_total, this.currency_precision);
-			// } else {
-			//   invoice_doc.base_rounded_total = this.roundAmount(invoice_doc.base_grand_total);
-			// }
+			if (this.pos_profile.disable_rounded_total) {
+				invoice_doc.rounded_total = this.flt(this.subtotal, this.currency_precision);
+			} else {
+				invoice_doc.rounded_total = this.roundAmount(this.subtotal);
+			}
+			
+			console.log("show_payment - after rounding:");
+			console.log("- grand_total:", invoice_doc.grand_total);
+			console.log("- rounded_total:", invoice_doc.rounded_total);
+			invoice_doc.base_total = this.Total * (1 / this.exchange_rate || 1);
+			invoice_doc.base_grand_total = this.subtotal * (1 / this.exchange_rate || 1);
+			if (this.pos_profile.disable_rounded_total) {
+				invoice_doc.base_rounded_total = this.flt(invoice_doc.base_grand_total, this.currency_precision);
+			} else {
+				invoice_doc.base_rounded_total = this.roundAmount(invoice_doc.base_grand_total);
+			}
 
 			// Check if this is a return invoice
 			if (this.isReturnInvoice || invoice_doc.is_return) {
@@ -1832,7 +1832,7 @@ export default {
 			}
 
 			// Recalculate final amounts
-			item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+			item.amount = this.roundAmount(item.qty * item.rate);
 			item.base_amount = this.flt(item.qty * item.base_rate, this.currency_precision);
 		});
 
@@ -2085,7 +2085,7 @@ export default {
 		}
 
 		// Calculate amounts
-		item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+		item.amount = this.roundAmount(item.qty * item.rate);
 		if (this.selected_currency !== baseCurrency) {
 			// Convert amount back to base currency by dividing by exchange rate
 			item.base_amount = this.flt(item.amount / this.exchange_rate, this.currency_precision);

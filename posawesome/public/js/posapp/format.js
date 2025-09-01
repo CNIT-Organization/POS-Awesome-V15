@@ -95,12 +95,35 @@ export default {
 		this.float_precision = frappe.defaults.get_default("float_precision") || 2;
 		this.currency_precision = frappe.defaults.get_default("currency_precision") || 2;
 
+		// Load saved precision from localStorage for offline usage
+		try {
+			const saved = typeof localStorage !== "undefined" ? localStorage.getItem("posawesome_currency_precision") : null;
+			const savedPrec = saved != null ? parseInt(saved) : NaN;
+			console.log("format.js - loading precision from localStorage:", saved, "parsed as:", savedPrec);
+			if (!isNaN(savedPrec)) {
+				this.float_precision = savedPrec;
+				this.currency_precision = savedPrec;
+				console.log("format.js - precision set to:", this.currency_precision);
+			}
+		} catch (e) {
+			// ignore localStorage errors
+			console.log("format.js - localStorage error:", e);
+		}
+
 		const updatePrecision = (data) => {
 			const profile = data.pos_profile || data;
 			const prec = parseInt(profile.posa_decimal_precision);
 			if (!isNaN(prec)) {
 				this.float_precision = prec;
 				this.currency_precision = prec;
+				// Persist precision for offline mode
+				try {
+					if (typeof localStorage !== "undefined") {
+						localStorage.setItem("posawesome_currency_precision", String(prec));
+					}
+				} catch (e) {
+					// ignore localStorage errors
+				}
 			}
 		};
 

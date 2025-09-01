@@ -233,7 +233,7 @@ export default {
 		}
 
 		// Calculate amounts
-		item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+		item.amount = this.roundAmount(item.qty * item.rate);
 		const baseCurrency = this.price_list_currency || this.pos_profile.currency;
 		if (this.selected_currency !== baseCurrency) {
 			// Convert amount back to base currency by dividing by exchange rate

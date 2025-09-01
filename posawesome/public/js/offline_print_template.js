@@ -362,8 +362,8 @@ function generatePOSPrintFormat(invoice, posProfile) {
 			Phone No. : 60628166
 		</div>
 		${invoice.status === 'Paid' ? 
-			'<div class="invoice"><b>CASH INVOICE</b></div>' : 
-			'<div class="invoice"><b>CREDIT INVOICE</b></div>'
+			'<div class="invoice"><b> INVOICE</b></div>' : 
+			'<div class="invoice"><b> INVOICE</b></div>'
 		}
 		<div class="bill-details">
 			<div class="flex justify-between">

@@ -105,7 +105,7 @@ export default {
 				item.base_discount_amount = 0;
 
 				// Calculate final amounts
-				item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+				item.amount = this.roundAmount(item.qty * item.rate);
 				item.base_amount = this.flt(item.qty * item.base_rate, this.currency_precision);
 
 				console.log("Updated batch prices:", {

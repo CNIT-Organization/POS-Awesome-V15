@@ -721,7 +721,7 @@ export default {
 					}
 
 					// Calculate final amounts
-					item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+					item.amount = this.roundAmount(item.qty * item.rate);
 					item.base_amount = this.flt(item.qty * item.base_rate, this.currency_precision);
 
 					console.log("Updated rates after applying offer:", {
@@ -798,7 +798,7 @@ export default {
 					item.base_discount_amount = 0;
 
 					// Recalculate amounts
-					item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+					item.amount = this.roundAmount(item.qty * item.rate);
 					item.base_amount = this.flt(item.qty * item.base_rate, this.currency_precision);
 
 					// Only clear original rates if no other offers are applied

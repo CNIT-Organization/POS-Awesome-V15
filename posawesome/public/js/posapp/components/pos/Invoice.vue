@@ -760,7 +760,7 @@ export default {
 				}
 
 				// Always recalculate final amounts
-				item.amount = this.flt(item.qty * item.rate, this.currency_precision);
+				item.amount = this.roundAmount(item.qty * item.rate);
 				item.base_amount = this.flt(item.qty * item.base_rate, this.currency_precision);
 
 				console.log(`Updated rates for ${item.item_code}:`, {
@@ -787,23 +787,9 @@ export default {
 			return this.$options.mixins[0].methods.formatCurrency.call(this, value, prec);
 		},
 
+		// Use mixin's frappe flt, which respects precision and rounding
 		flt(value, precision = null) {
-			// Enhanced float handling for small numbers
-			if (precision === null) {
-				precision = this.float_precision;
-			}
-
-			const _value = Number(value);
-			if (isNaN(_value)) {
-				return 0;
-			}
-
-			// Handle very small numbers to prevent them from becoming 0
-			if (Math.abs(_value) < 0.000001) {
-				return _value;
-			}
-
-			return Number((_value || 0).toFixed(precision));
+			return this.$options.mixins[0].methods.flt.call(this, value, precision);
 		},
 
 		// Update currency and exchange rate when currency is changed
@@ -946,17 +932,32 @@ export default {
 			this.update_item_rates();
 		},
 
-		// Add new rounding function
+				// Add new rounding function
 		roundAmount(amount) {
+			console.log("roundAmount called with:", amount, "precision:", this.currency_precision);
+			
 			// Respect POS Profile setting to disable rounding
 			if (this.pos_profile.disable_rounded_total) {
 				// Use configured precision without applying rounding
-				return this.flt(amount, this.currency_precision);
+				const result = this.flt(amount, this.currency_precision);
+				console.log("roundAmount (disabled):", result);
+				return result;
 			}
 			
-			// For currency amounts, we need to round to the smallest currency unit
+			// For precision 3, always round up to the next 0.001 increment
+			if (this.currency_precision === 3) {
+				const multiplier = 1000;
+				// Add a tiny amount to ensure proper rounding for exact values
+				const adjustedAmount = amount + 0.0000001;
+				const roundedAmount = Math.ceil(adjustedAmount * multiplier) / multiplier;
+				// Don't use flt here as it applies banker's rounding which undoes our work
+				const result = Number(roundedAmount.toFixed(3));
+				console.log("roundAmount (precision 3):", amount, "->", roundedAmount, "->", result);
+				return result;
+			}
+			
+			// For other precisions, round to the nearest smallest currency unit
 			// For most currencies, this is 0.01 (2 decimal places)
-			// For some currencies like KWD (Kuwaiti Dinar), it might be 0.001 (3 decimal places)
 			let smallestUnit = 0.01; // Default to 2 decimal places
 			
 			// Check if we're dealing with KWD (Kuwaiti Dinar) which uses 3 decimal places
@@ -975,9 +976,9 @@ export default {
 				return this.flt(roundedAmount, 3);
 			}
 			
-			// Round DOWN to the nearest smallest currency unit (minus rounding)
+			// Round to the nearest smallest currency unit
 			const multiplier = 1 / smallestUnit;
-			const roundedAmount = Math.floor(amount * multiplier) / multiplier;
+			const roundedAmount = Math.round(amount * multiplier) / multiplier;
 			
 			return this.flt(roundedAmount, this.currency_precision);
 		},
