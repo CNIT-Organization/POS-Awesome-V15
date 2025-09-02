@@ -360,7 +360,7 @@ export default {
 							<style>
 								/* Additional safeguards for printing */
 								@page {
-									size: 80mm 60mm;
+									size: 80mm 80mm;
 									margin: 0;
 									padding: 0;
 								}
@@ -368,7 +368,7 @@ export default {
 									margin: 0;
 									padding: 0;
 									width: 80mm;
-									height: 60mm;
+									height: 80mm;
 									overflow: hidden;
 								}
 							</style>

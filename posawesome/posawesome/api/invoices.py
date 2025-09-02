@@ -739,7 +739,7 @@ def open_cash_drawer():
 			<style>
 				/* Strict page sizing to prevent long page issues */
 				@page {{
-					size: 80mm 60mm;
+					size: 80mm 80mm;
 					margin: 0;
 					padding: 0;
 				}}
@@ -753,7 +753,7 @@ def open_cash_drawer():
 				
 				html, body {{
 					width: 80mm;
-					height: 60mm;
+					height: 80mm;
 					margin: 0;
 					padding: 0;
 					overflow: hidden;
@@ -767,7 +767,7 @@ def open_cash_drawer():
 				/* Ensure content fits within strict dimensions */
 				.receipt-container {{
 					width: 76mm;
-					height: 56mm;
+					height: 76mm;
 					margin: 2mm;
 					padding: 0;
 					overflow: hidden;
@@ -796,6 +796,14 @@ def open_cash_drawer():
 					color: #333;
 				}}
 				
+				.small-text {{
+					text-align: center;
+					font-size: 8px;
+					margin: 2mm 0;
+					color: #666;
+					font-style: italic;
+				}}
+				
 				.timestamp {{
 					text-align: center;
 					font-size: 8px;
@@ -804,11 +812,22 @@ def open_cash_drawer():
 					padding-top: 2mm;
 				}}
 				
+				.end-marker {{
+					text-align: center;
+					font-size: 10px;
+					margin-top: 4mm;
+					font-weight: bold;
+					color: #000;
+					border: 2px solid #000;
+					padding: 2mm;
+					border-radius: 2mm;
+				}}
+				
 				/* Print media queries to ensure consistent output */
 				@media print {{
 					html, body {{
 						width: 80mm !important;
-						height: 60mm !important;
+						height: 80mm !important;
 						margin: 0 !important;
 						padding: 0 !important;
 						overflow: hidden !important;
@@ -816,7 +835,7 @@ def open_cash_drawer():
 					
 					.receipt-container {{
 						width: 76mm !important;
-						height: 56mm !important;
+						height: 76mm !important;
 						margin: 2mm !important;
 						padding: 0 !important;
 						overflow: hidden !important;
@@ -840,9 +859,15 @@ def open_cash_drawer():
 					by user: {user}<br>
 					Profile: {pos_profile}
 				</div>
+				<div class="small-text">
+					Thank you for using our POS system<br>
+					Please ensure cash drawer is properly closed<br>
+					Keep this receipt for your records
+				</div>
 				<div class="timestamp">
 					{frappe.utils.now_datetime().strftime("%Y-%m-%d %H:%M:%S")}
 				</div>
+				<div class="end-marker">END OF RECEIPT</div>
 			</div>
 		</body>
 		</html>
