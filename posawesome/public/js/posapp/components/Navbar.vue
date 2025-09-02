@@ -331,25 +331,75 @@ export default {
 					args: {},
 				});
 				if (result.message && result.message.success) {
-					// Send the HTML content to printer to trigger cash drawer
-					const printWindow = window.open("", "_blank", "width=1,height=1,scrollbars=no,resizable=no");
-					printWindow.document.write(result.message.html_content);
+					// Create a minimal print window for cash drawer with strict controls
+					const printWindow = window.open("", "_blank", "width=1,height=1,scrollbars=no,resizable=no,toolbar=no,menubar=no,location=no,status=no");
+					
+					// Add additional safeguards to prevent long page issues
+					printWindow.document.write(`
+						<!DOCTYPE html>
+						<html>
+						<head>
+							<title>Cash Drawer Print</title>
+							<style>
+								/* Additional safeguards for printing */
+								@page {
+									size: 80mm 60mm;
+									margin: 0;
+									padding: 0;
+								}
+								body {
+									margin: 0;
+									padding: 0;
+									width: 80mm;
+									height: 60mm;
+									overflow: hidden;
+								}
+							</style>
+						</head>
+						<body>
+							${result.message.html_content}
+						</body>
+						</html>
+					`);
 					printWindow.document.close();
 					
-					// Auto-print and close immediately
-					setTimeout(() => {
-						printWindow.focus();
-						printWindow.print();
+					// Wait for content to load, then print and close immediately
+					printWindow.addEventListener('load', () => {
+						// Set a timeout to ensure content is fully rendered
 						setTimeout(() => {
+							try {
+								// Force focus and print
+								printWindow.focus();
+								printWindow.print();
+								
+								// Close the window after a very short delay
+								setTimeout(() => {
+									if (!printWindow.closed) {
+										printWindow.close();
+									}
+								}, 300);
+							} catch (printError) {
+								console.warn("Print failed:", printError);
+								if (!printWindow.closed) {
+									printWindow.close();
+								}
+							}
+						}, 150);
+					});
+					
+					// Fallback: if load event doesn't fire, close after reasonable timeout
+					setTimeout(() => {
+						if (!printWindow.closed) {
 							printWindow.close();
-						}, 100);
-					}, 50);
+						}
+					}, 3000);
 					
 					this.showMessage({ title: this.__("Cash drawer opened successfully"), color: "success" });
 				} else {
 					this.showMessage({ title: this.__("Failed to open cash drawer"), color: "error" });
 				}
 			} catch (error) {
+				console.error("Cash drawer error:", error);
 				this.showMessage({ title: this.__("Error opening cash drawer"), color: "error" });
 			}
 		},

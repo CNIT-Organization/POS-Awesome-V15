@@ -702,7 +702,8 @@ def get_todays_invoices(company, user=None):
 @frappe.whitelist()
 def open_cash_drawer():
 	"""
-	Open the cash drawer by sending a print command without printing content
+	Open the cash drawer by sending a minimal receipt format
+	This prevents long page issues by using controlled dimensions
 	"""
 	try:
 		# Get current user's POS profile
@@ -721,48 +722,124 @@ def open_cash_drawer():
 		# Log the attempt
 		frappe.logger().info(f"Opening cash drawer for user: {user}, profile: {pos_profile}")
 		
-		# Create a minimal HTML content that will trigger the printer but print nothing visible
-		html_content = """
+		# Create a minimal, controlled receipt format for cash drawer
+		# This prevents long page issues by using strict dimensions and minimal content
+		receipt_content = f"""
 		<!DOCTYPE html>
 		<html>
 		<head>
 			<title>Cash Drawer</title>
+			<meta charset="utf-8">
 			<style>
-				@page { 
-					size: 80mm 10mm; 
-					margin: 0; 
-				}
-				body { 
-					margin: 0; 
-					padding: 0; 
-					font-size: 0px; 
-					line-height: 0px; 
-					color: transparent; 
-					background: transparent;
-					height: 10mm;
+				/* Strict page sizing to prevent long page issues */
+				@page {{
+					size: 80mm 60mm;
+					margin: 0;
+					padding: 0;
+				}}
+				
+				/* Reset all margins and padding */
+				* {{
+					margin: 0;
+					padding: 0;
+					box-sizing: border-box;
+				}}
+				
+				html, body {{
+					width: 80mm;
+					height: 60mm;
+					margin: 0;
+					padding: 0;
 					overflow: hidden;
-				}
-				@media print {
-					body { 
-						font-size: 0px; 
-						line-height: 0px; 
-						height: 10mm;
-					}
-				}
+					font-family: 'Courier New', monospace;
+					font-size: 10px;
+					line-height: 1.2;
+					color: #000;
+					background: white;
+				}}
+				
+				/* Ensure content fits within strict dimensions */
+				.receipt-container {{
+					width: 76mm;
+					height: 56mm;
+					margin: 2mm;
+					padding: 0;
+					overflow: hidden;
+				}}
+				
+				.header {{
+					text-align: center;
+					font-weight: bold;
+					font-size: 12px;
+					margin-bottom: 3mm;
+					border-bottom: 1px solid #000;
+					padding-bottom: 2mm;
+				}}
+				
+				.content {{
+					text-align: center;
+					font-size: 10px;
+					margin: 3mm 0;
+				}}
+				
+				.timestamp {{
+					text-align: center;
+					font-size: 8px;
+					margin-top: 3mm;
+					border-top: 1px solid #000;
+					padding-top: 2mm;
+				}}
+				
+				/* Print media queries to ensure consistent output */
+				@media print {{
+					html, body {{
+						width: 80mm !important;
+						height: 60mm !important;
+						margin: 0 !important;
+						padding: 0 !important;
+						overflow: hidden !important;
+					}}
+					
+					.receipt-container {{
+						width: 76mm !important;
+						height: 56mm !important;
+						margin: 2mm !important;
+						padding: 0 !important;
+						overflow: hidden !important;
+					}}
+					
+					/* Prevent page breaks */
+					* {{
+						page-break-inside: avoid !important;
+						page-break-before: avoid !important;
+						page-break-after: avoid !important;
+					}}
+				}}
 			</style>
 		</head>
 		<body>
+			<div class="receipt-container">
+				<div class="header">CASH DRAWER OPENED</div>
+				<div class="content">
+					Cash drawer has been opened<br>
+					by user: {user}<br>
+					Profile: {pos_profile}
+				</div>
+				<div class="timestamp">
+					{frappe.utils.now_datetime().strftime("%Y-%m-%d %H:%M:%S")}
+				</div>
+			</div>
 		</body>
 		</html>
 		"""
 		
-		# Return the HTML content that can be printed to trigger the cash drawer
+		# Return the controlled receipt content
 		return {
 			"success": True, 
 			"message": "Cash drawer command prepared",
 			"profile": pos_profile,
-			"html_content": html_content,
-			"note": "Send this HTML to printer to open cash drawer without printing content"
+			"html_content": receipt_content,
+			"note": "This will print a controlled receipt and trigger cash drawer"
 		}
 		
 	except Exception as e:
