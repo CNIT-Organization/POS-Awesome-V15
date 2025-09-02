@@ -719,8 +719,14 @@ def open_cash_drawer():
 		# Use the first available profile
 		pos_profile = pos_profiles[0].name
 		
+		# Get or create cash drawer counter
+		counter_key = f"cash_drawer_counter_{user}"
+		current_counter = frappe.cache().get_value(counter_key) or 0
+		new_counter = current_counter + 1
+		frappe.cache().set_value(counter_key, new_counter)
+		
 		# Log the attempt
-		frappe.logger().info(f"Opening cash drawer for user: {user}, profile: {pos_profile}")
+		frappe.logger().info(f"Opening cash drawer for user: {user}, profile: {pos_profile}, counter: {new_counter}")
 		
 		# Create a minimal, controlled receipt format for cash drawer
 		# This prevents long page issues by using strict dimensions and minimal content
@@ -782,6 +788,14 @@ def open_cash_drawer():
 					margin: 3mm 0;
 				}}
 				
+				.counter {{
+					text-align: center;
+					font-size: 14px;
+					font-weight: bold;
+					margin: 2mm 0;
+					color: #333;
+				}}
+				
 				.timestamp {{
 					text-align: center;
 					font-size: 8px;
@@ -820,6 +834,7 @@ def open_cash_drawer():
 		<body>
 			<div class="receipt-container">
 				<div class="header">CASH DRAWER OPENED</div>
+				<div class="counter">Counter: {new_counter}</div>
 				<div class="content">
 					Cash drawer has been opened<br>
 					by user: {user}<br>
@@ -839,6 +854,7 @@ def open_cash_drawer():
 			"message": "Cash drawer command prepared",
 			"profile": pos_profile,
 			"html_content": receipt_content,
+			"counter": new_counter,
 			"note": "This will print a controlled receipt and trigger cash drawer"
 		}
 		

@@ -262,6 +262,7 @@ export default {
 			snackText: "",
 			snackColor: "success",
 			snackTimeout: 3000,
+			cashDrawerOpening: false, // New flag to track cash drawer opening status
 		};
 	},
 	computed: {
@@ -326,11 +327,27 @@ export default {
 		},
 		async openCashDrawerFromNavbar() {
 			try {
+				// Prevent multiple simultaneous cash drawer operations
+				if (this.cashDrawerOpening) {
+					this.showMessage({ title: this.__("Cash drawer is already opening..."), color: "warning" });
+					return;
+				}
+				
+				this.cashDrawerOpening = true;
+				
 				const result = await frappe.call({
 					method: "posawesome.posawesome.api.invoices.open_cash_drawer",
 					args: {},
 				});
+				
 				if (result.message && result.message.success) {
+					// Show counter information
+					const counter = result.message.counter || 1;
+					this.showMessage({ 
+						title: this.__("Opening cash drawer... Counter: {0}", [counter]), 
+						color: "info" 
+					});
+					
 					// Create a minimal print window for cash drawer with strict controls
 					const printWindow = window.open("", "_blank", "width=1,height=1,scrollbars=no,resizable=no,toolbar=no,menubar=no,location=no,status=no");
 					
@@ -377,14 +394,14 @@ export default {
 									if (!printWindow.closed) {
 										printWindow.close();
 									}
-								}, 300);
+								}, 500);
 							} catch (printError) {
 								console.warn("Print failed:", printError);
 								if (!printWindow.closed) {
 									printWindow.close();
 								}
 							}
-						}, 150);
+						}, 200);
 					});
 					
 					// Fallback: if load event doesn't fire, close after reasonable timeout
@@ -392,15 +409,27 @@ export default {
 						if (!printWindow.closed) {
 							printWindow.close();
 						}
-					}, 3000);
+					}, 5000);
 					
-					this.showMessage({ title: this.__("Cash drawer opened successfully"), color: "success" });
+					// Success message with counter
+					setTimeout(() => {
+						this.showMessage({ 
+							title: this.__("Cash drawer opened successfully! Counter: {0}", [counter]), 
+							color: "success" 
+						});
+					}, 1000);
+					
 				} else {
 					this.showMessage({ title: this.__("Failed to open cash drawer"), color: "error" });
 				}
 			} catch (error) {
 				console.error("Cash drawer error:", error);
 				this.showMessage({ title: this.__("Error opening cash drawer"), color: "error" });
+			} finally {
+				// Reset the flag after a delay to prevent rapid clicking
+				setTimeout(() => {
+					this.cashDrawerOpening = false;
+				}, 2000);
 			}
 		},
 		syncPendingInvoices() {
