@@ -266,6 +266,9 @@ function generatePOSPrintFormat(invoice, posProfile) {
 			display: flex;
 			justify-content: center;
 			font-size: 10px;
+			margin: 0;
+			padding: 0;
+			min-height: 100vh;
 		}
 		.address {
 			line-height: 100%;
@@ -281,10 +284,11 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		}
 		.bill {
 			width: 80mm;
-			margin: 5px auto;
+			margin: 0 auto;
 			box-shadow: 0 0 3px #aaa;
-			padding: 10px;
+			padding: 5px;
 			box-sizing: border-box;
+			min-height: auto;
 		}
 		.flex {
 			display: flex;
@@ -347,6 +351,22 @@ function generatePOSPrintFormat(invoice, posProfile) {
 			.hidden-print,
 			.hidden-print * {
 				display: none !important;
+			}
+			body {
+				margin: 0;
+				padding: 0;
+				min-height: auto;
+			}
+			.bill {
+				margin: 0;
+				box-shadow: none;
+				width: 80mm;
+				height: auto;
+				padding: 2mm;
+			}
+			@page {
+				size: 80mm auto;
+				margin: 0;
 			}
 		}
 	</style>
@@ -431,7 +451,10 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		
 		${paymentMethods}<br>
 		Username: ${posProfile?.name || "POS"} [Biller]<br>
-		Thank You ! Please visit again
+		Thank You ! Please visit again<br><br>
+		<div style="text-align: center; font-weight: bold; margin-top: 10px;">
+			END OF RECEIPT
+		</div>
 	</div>
 </body>
 </html>`;
