@@ -376,19 +376,19 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		</div>
 		<table class="table" width="100%">
 			<tr class="header">
-				<th width="30%" class="td2">
+				<th width="35%" class="td2">
 					Item &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
 					الإ سم
 				</th>
-				<th width="22%" class="td2">
+				<th width="20%" class="td2">
 					Qty &nbsp;
 					الكمية
 				</th>
-				<th width="22%" class="td2">
+				<th width="20%" class="td2">
 					U/P &nbsp; &nbsp;
 					س\ و
 				</th>
-				<th width="26%" class="td2">
+				<th width="25%" class="td2">
 					Amount
 					المجموع
 				</th>
@@ -397,34 +397,30 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		</table>
 		<table class="table" width="100%">
 			<tr class="total">
-				<td width="40%">Total</td>
+				<td width="35%">Total</td>
 				<td width="40%">المجموع</td>
-				<td width="20%"></td>
-				<td width="20%" class="amount-column">${formatCurrency(invoice.total, invoice.currency)}</td>
+				<td width="25%" class="amount-column">${formatCurrency(invoice.total, invoice.currency)}</td>
 			</tr>
 			${invoice.discount_amount && parseFloat(invoice.discount_amount) > 0 ? `
 			<tr>
 				<td>Discount</td>
 				<td>تخفيض</td>
-				<td></td>
 				<td class="amount-column">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
 			</tr>
 			` : ""}
 			<tr class="net-amount">
 				<td>Net Amount</td>
 				<td>المجموع الإجمالي</td>
-				<td></td>
 				<td class="amount-column">${formatCurrency(invoice.grand_total, invoice.currency)}</td>
 			</tr>
 			<tr>
 				<td>Paid Amount</td>
 				<td>المبلغ المدفوع</td>
-				<td></td>
 				<td class="amount-column">${formatCurrency(invoice.paid_amount, invoice.currency)}</td>
 			</tr>
 			${(parseFloat(invoice.paid_amount) > parseFloat(invoice.grand_total)) ? `
 			<tr class="net-amount">
-				<td colspan="4" style="font-size:16px; text-align: center;"><b>Change Amount: ${formatCurrency(parseFloat(invoice.paid_amount) - parseFloat(invoice.grand_total), invoice.currency)}</b></td>
+				<td colspan="3" style="font-size:16px; text-align: center;"><b>Change Amount: ${formatCurrency(parseFloat(invoice.paid_amount) - parseFloat(invoice.grand_total), invoice.currency)}</b></td>
 			</tr>
 			` : ""}
 		</table>
