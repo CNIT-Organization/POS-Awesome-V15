@@ -48,7 +48,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
 			return `<tr>
         <td>${it.item_code}${it.item_name && it.item_name !== it.item_code ? `<br>${it.item_name}` : ""}${sn}</td>
         <td class="text-right">${it.qty} ${it.uom || ""}<br>@ ${formatCurrency(it.rate, invoice.currency)}</td>
-        <td class="text-right">${formatCurrency(it.amount, invoice.currency)}</td>
+        <td class="text-right amount-cell">${formatCurrency(it.amount, invoice.currency)}</td>
       </tr>`;
 		})
 		.join("");
@@ -57,7 +57,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
 		.map(
 			(row) => `<tr>
       <td class="text-right" style="width:70%">${row.description}@${row.rate}%</td>
-      <td class="text-right">${formatCurrency(row.tax_amount, invoice.currency)}</td>
+      <td class="text-right amount-cell">${formatCurrency(row.tax_amount, invoice.currency)}</td>
     </tr>`,
 		)
 		.join("");
@@ -65,14 +65,14 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
 	const discountRow = invoice.discount_amount
 		? `<tr>
       <td class="text-right" style="width:75%">Discount / تخفيض</td>
-      <td class="text-right">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
+      <td class="text-right amount-cell">${formatCurrency(invoice.discount_amount, invoice.currency)}</td>
     </tr>`
 		: "";
 
 	const changeRow = invoice.change_amount
 		? `<tr>
       <td class="text-right" style="width:75%">Change Amount / المبلغ المتبقي</td>
-      <td class="text-right">${formatCurrency(invoice.change_amount, invoice.currency)}</td>
+      <td class="text-right amount-cell">${formatCurrency(invoice.change_amount, invoice.currency)}</td>
     </tr>`
 		: "";
 
@@ -122,6 +122,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
       .items-table { margin-bottom: 15px; }
       .totals-table { margin-bottom: 10px; }
       .footer { margin-top: 15px; }
+      .amount-cell { font-weight: bold; font-size: 11px; }
     </style>
   </head>
   <body class="print-format">
@@ -165,7 +166,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
             <td class="text-right" style="width: 70%">
               Net Total / المجموع الصافي
             </td>
-            <td class="text-right">
+            <td class="text-right amount-cell">
               ${formatCurrency(invoice.total, invoice.currency)}
             </td>
           </tr>
@@ -175,7 +176,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
             <td class="text-right" style="width: 75%">
               <b>Grand Total / المجموع الإجمالي</b>
             </td>
-            <td class="text-right">
+            <td class="text-right amount-cell">
               ${formatCurrency(invoice.grand_total, invoice.currency)}
             </td>
           </tr>
@@ -183,7 +184,7 @@ export default function generateOfflineInvoiceHTML(invoice, posProfile = null, c
             <td class="text-right" style="width: 75%">
               <b>Paid Amount / المبلغ المدفوع</b>
             </td>
-            <td class="text-right">
+            <td class="text-right amount-cell">
               ${formatCurrency(invoice.paid_amount, invoice.currency)}
             </td>
           </tr>
@@ -241,8 +242,8 @@ function generatePOSPrintFormat(invoice, posProfile) {
 				<tr>
 					<td style="font-size: 9px;">${barcode}</td>
 					<td style="text-align: center;">${item.qty}</td>
-					<td style="text-align: right;">${formatCurrency(item.rate, invoice.currency)}</td>
-					<td style="text-align: right;">${formatCurrency(item.amount, invoice.currency)}</td>
+					<td style="text-align: right; font-weight: bold; font-size: 11px;">${formatCurrency(item.rate, invoice.currency)}</td>
+					<td style="text-align: right; font-weight: bold; font-size: 11px;">${formatCurrency(item.amount, invoice.currency)}</td>
 				</tr>
 			`;
 		})
@@ -329,6 +330,8 @@ function generatePOSPrintFormat(invoice, posProfile) {
 		.amount-column {
 			text-align: right;
 			padding-right: 5px;
+			font-weight: bold;
+			font-size: 11px;
 		}
 		.table td {
 			vertical-align: top;

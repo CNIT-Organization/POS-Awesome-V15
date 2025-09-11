@@ -191,7 +191,7 @@ def get_cashiers(doctype, txt, searchfield, start, page_len, filters):
 @frappe.whitelist()
 def get_pos_invoices(pos_opening_shift):
 	submit_printed_invoices(pos_opening_shift)
-	# Fetch both submitted and unpaid invoices for this POS shift
+	# Fetch only submitted invoices (remove Draft invoices from closing shift report)
 	data = frappe.db.sql(
 		"""
 		select
@@ -200,7 +200,7 @@ def get_pos_invoices(pos_opening_shift):
 			`tabSales Invoice`
 		where
 			posa_pos_opening_shift = %s
-			and (docstatus = 1 or outstanding_amount > 0)
+			and docstatus = 1
 		""",
 		(pos_opening_shift),
 		as_dict=1,
@@ -240,7 +240,8 @@ def get_unpaid_invoices(pos_opening_shift):
 		return []
 	
 	# Get all invoices for this POS shift first
-	all_invoices = frappe.db.sql(
+	# Get unpaid invoices for this shift directly with SQL filter
+	unpaid_invoices = frappe.db.sql(
 		"""
 		select
 			name,
@@ -253,23 +254,12 @@ def get_unpaid_invoices(pos_opening_shift):
 			`tabSales Invoice`
 		where
 			posa_pos_opening_shift = %s
+			and docstatus = 1
+			and outstanding_amount > 0
 		""",
 		(pos_opening_shift),
 		as_dict=1,
 	)
-	
-	# Debug: Print all invoices found
-	print(f"DEBUG: Found {len(all_invoices)} invoices for shift {pos_opening_shift}")
-	
-	# Filter for unpaid invoices
-	unpaid_invoices = []
-	for invoice in all_invoices:
-		outstanding = flt(invoice.outstanding_amount)
-		print(f"DEBUG: Invoice {invoice.name} - Outstanding: {outstanding} (raw: {invoice.outstanding_amount})")
-		if outstanding > 0:
-			unpaid_invoices.append(invoice)
-	
-	print(f"DEBUG: Found {len(unpaid_invoices)} unpaid invoices")
 	return unpaid_invoices
 
 
@@ -474,6 +464,13 @@ def make_closing_shift_from_opening(opening_shift):
 	closing_shift.unpaid_invoices_count = 0
 
 	invoices = get_pos_invoices(opening_shift.get("name"))
+	
+	# Get return sales for this shift
+	return_sales_data = get_sales_returns_for_shift(opening_shift.get("name"))
+	
+	# Add return sales data to closing shift
+	closing_shift.return_sales_total = return_sales_data.get('returns_total', 0)
+	closing_shift.return_sales_count = return_sales_data.get('returns_count', 0)
 
 	pos_transactions = []
 	taxes = []
@@ -715,6 +712,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get sales returns for this shift
 	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
 	
+	# Debug: Print return sales data
+	
 	# Calculate all totals in Python
 	# Opening balance should only include cash (not Knet or other payment methods)
 	opening_cash_balance = 0
@@ -897,79 +896,28 @@ def get_sales_returns_for_shift(pos_opening_shift):
 	Get sales returns for a specific POS shift period
 	"""
 	try:
-		shift_doc = frappe.get_doc("POS Opening Shift", pos_opening_shift)
-		start_datetime = shift_doc.period_start_date
-		end_datetime = shift_doc.period_end_date or frappe.utils.now()
-		
-		# Get ALL returns for this shift period - comprehensive search
-		sales_returns = frappe.get_all(
+		return_sales = frappe.get_all(
 			"Sales Invoice",
 			filters={
-				"is_return": 1,
-				"is_pos": 1,
-				"posting_date": [">=", start_datetime.date()],
-				"posting_date": ["<=", end_datetime.date()],
-				"docstatus": ["in", [0, 1, 2]],  # Draft, submitted, and cancelled returns
-			},
-			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "total_taxes_and_charges"]
-		)
-		
-		# Also get returns directly linked to this shift
-		shift_linked_returns = frappe.get_all(
-			"Sales Invoice",
-			filters={
-				"is_return": 1,
-				"is_pos": 1,
 				"posa_pos_opening_shift": pos_opening_shift,
-				"docstatus": ["in", [0, 1, 2]],  # Draft, submitted, and cancelled returns
+				"docstatus": 1,
+				"is_return": 1,
 			},
-			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "total_taxes_and_charges"]
+			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "posa_pos_opening_shift"]
 		)
-		
-		# Combine and remove duplicates
-		all_returns = sales_returns + shift_linked_returns
-		unique_returns = []
-		seen_names = set()
-		
-		for return_inv in all_returns:
-			if return_inv.name not in seen_names:
-				unique_returns.append(return_inv)
-				seen_names.add(return_inv.name)
-		
-		returns_total = sum(flt(return_inv.grand_total) for return_inv in unique_returns)
-		returns_count = len(unique_returns)
-		
-		customer_returns = {}
-		for return_inv in unique_returns:
-			customer = return_inv.customer
-			if customer not in customer_returns:
-				customer_returns[customer] = {
-					"count": 0,
-					"total": 0,
-					"invoices": []
-				}
-			customer_returns[customer]["count"] += 1
-			customer_returns[customer]["total"] += flt(return_inv.grand_total)
-			customer_returns[customer]["invoices"].append(return_inv)
-		
+		print(f"DEBUG: Return sales: {return_sales}")
 		return {
-			"returns": unique_returns,
-			"returns_total": returns_total,
-			"returns_count": returns_count,
-			"customer_returns": customer_returns,
-			"start_date": start_datetime.date(),
-			"end_date": end_datetime.date()
+			"returns": return_sales,
+			"returns_total": sum(flt(return_inv.grand_total) for return_inv in return_sales),
+			"returns_count": len(return_sales)
 		}
+		
 	except Exception as e:
 		return {
 			"returns": [],
 			"returns_total": 0,
-			"returns_count": 0,
-			"customer_returns": {},
-			"start_date": None,
-			"end_date": None
+			"returns_count": 0
 		}
-
 
 def get_items_sold_during_shift(pos_opening_shift):
 	"""
@@ -1014,107 +962,139 @@ def get_items_sold_during_shift(pos_opening_shift):
 
 
 @frappe.whitelist()
-def test_cashier_shift_report():
+def test_return_sales_data():
 	"""
-	Test function to generate a sample cashier shift report
+	Test function to check return sales data in the system
 	"""
-	latest_closing_shift = frappe.get_all(
-		"POS Closing Shift",
-		filters={"docstatus": 1},
-		fields=["name"],
-		order_by="creation desc",
-		limit=1
+	# Check for any return invoices in the system
+	all_returns = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"is_return": 1,
+			"is_pos": 1,
+			"docstatus": ["in", [0, 1, 2]]
+		},
+		fields=["name", "customer", "grand_total", "posting_date", "posa_pos_opening_shift", "docstatus"]
 	)
 	
-	if latest_closing_shift:
-		closing_shift_name = latest_closing_shift[0].name
-		closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
-		
-		company = frappe.get_doc("Company", closing_shift_doc.company)
-		user = frappe.get_doc("User", closing_shift_doc.user)
-		pos_profile = frappe.get_doc("POS Profile", closing_shift_doc.pos_profile)
-		
-		items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
-		
-		unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
-		
-		petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
-		
-		sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
-		
-		report_data = {
-			"closing_shift": closing_shift_doc,
-			"company": company,
-			"user": user,
-			"pos_profile": pos_profile,
-			"items_sold": items_sold,
-			"unpaid_invoices": unpaid_invoices,
-			"petty_cash_data": petty_cash_data,
-			"sales_returns_data": sales_returns_data,
-			"currency": company.default_currency,
-			"report_date": frappe.utils.nowdate(),
-			"report_time": frappe.utils.nowtime(),
-			"returns_total": sales_returns_data.get('returns_total', 0),
-			"returns_count": sales_returns_data.get('returns_count', 0),
-			"returns_list": sales_returns_data.get('returns', [])
-		}
-	else:
-		report_data = {
-			"closing_shift": {
-				"name": "Sample Closing Shift",
-				"period_start_date": frappe.utils.nowdatetime(),
-				"period_end_date": frappe.utils.nowdatetime(),
-				"total_quantity": 0,
-				"net_total": 0
-			},
-			"company": frappe.get_doc("Company", frappe.defaults.get_global_default("company")),
-			"user": frappe.get_doc("User", frappe.session.user),
-			"pos_profile": frappe.get_doc("POS Profile", frappe.db.get_value("POS Profile", {"disabled": 0}, "name")),
-			"items_sold": [],
-			"unpaid_invoices": [],
-			"petty_cash_data": {
-				"entries": [],
-				"pay_in_total": 0,
-				"pay_out_total": 0,
-				"net_petty_cash": 0
-			},
-			"sales_returns_data": {
-				"returns": [],
-				"returns_total": 0,
-				"returns_count": 0,
-				"customer_returns": {},
-				"start_date": None,
-				"end_date": None
-			},
-			"returns_total": 0,
-			"returns_count": 0,
-			"returns_list": [],
-			"currency": frappe.defaults.get_global_default("currency"),
-			"report_date": frappe.utils.nowdate(),
-			"report_time": frappe.utils.nowtime()
-		}
-	
-	html_content = frappe.render_template(
-		"posawesome/posawesome/doctype/pos_closing_shift/cashier_shift_report.html",
-		report_data
+	# Check for returns in the last 7 days
+	recent_returns = frappe.get_all(
+		"Sales Invoice",
+		filters={
+			"is_return": 1,
+			"is_pos": 1,
+			"posting_date": [">=", frappe.utils.add_days(frappe.utils.today(), -7)],
+			"docstatus": ["in", [0, 1, 2]]
+		},
+		fields=["name", "customer", "grand_total", "posting_date", "posa_pos_opening_shift", "docstatus"]
 	)
 	
-	print_format_name = "test_cashier_report"
-	
-	if not frappe.db.exists("Print Format", print_format_name):
-		print_format = frappe.new_doc("Print Format")
-		print_format.name = print_format_name
-		print_format.doc_type = "POS Closing Shift"
-		print_format.format = "HTML"
-		print_format.html = html_content
-		print_format.standard = "No"
-		print_format.save(ignore_permissions=True)
-	else:
-		print_format = frappe.get_doc("Print Format", print_format_name)
-		print_format.html = html_content
-		print_format.save(ignore_permissions=True)
-	
-	base_url = frappe.utils.get_url()
-	print_url = f"{base_url}/printview?doctype=POS%20Closing%20Shift&name=test&format={print_format_name}&trigger_print=0"
-	
-	return print_url
+	return {
+		"all_returns_count": len(all_returns),
+		"recent_returns_count": len(recent_returns),
+		"all_returns": all_returns[:10],  # First 10 for debugging
+		"recent_returns": recent_returns
+	}
+
+
+@frappe.whitelist()
+def test_return_sales_query(shift_name):
+	"""
+	Test the return sales query for a specific shift
+	"""
+	try:
+		# Test the shift-linked query
+		shift_linked_returns = frappe.get_all(
+			"Sales Invoice",
+			filters={
+				"is_return": 1,
+				"is_pos": 1,
+				"posa_pos_opening_shift": shift_name,
+				"docstatus": ["in", [0, 1, 2]],
+			},
+			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "posa_pos_opening_shift"]
+		)
+		
+		# Test a broader query to see all returns
+		all_returns = frappe.get_all(
+			"Sales Invoice",
+			filters={
+				"is_return": 1,
+				"is_pos": 1,
+				"docstatus": ["in", [0, 1, 2]],
+			},
+			fields=["name", "customer", "grand_total", "posting_date", "posting_time", "posa_pos_opening_shift"]
+		)
+		
+		return {
+			"shift_name": shift_name,
+			"shift_linked_count": len(shift_linked_returns),
+			"shift_linked_returns": shift_linked_returns,
+			"all_returns_count": len(all_returns),
+			"all_returns": all_returns[:10]  # First 10 for debugging
+		}
+		
+	except Exception as e:
+		return {
+			"error": str(e)
+		}
+
+
+@frappe.whitelist()
+def create_test_return_sales():
+	"""
+	Create a test return sales entry for testing purposes
+	"""
+	try:
+		# Get the latest POS opening shift
+		latest_shift = frappe.get_all(
+			"POS Opening Shift",
+			filters={"docstatus": 1},
+			fields=["name"],
+			order_by="creation desc",
+			limit=1
+		)
+		
+		if not latest_shift:
+			return {"error": "No POS opening shift found"}
+		
+		shift_name = latest_shift[0].name
+		
+		# Create a test return invoice
+		return_invoice = frappe.new_doc("Sales Invoice")
+		return_invoice.is_return = 1
+		return_invoice.is_pos = 1
+		return_invoice.posa_pos_opening_shift = shift_name
+		return_invoice.customer = "Test Customer"
+		return_invoice.posting_date = frappe.utils.today()
+		return_invoice.posting_time = frappe.utils.nowtime()
+		return_invoice.company = frappe.defaults.get_global_default("company")
+		
+		# Add a test item
+		return_invoice.append("items", {
+			"item_code": "Test Item",
+			"item_name": "Test Return Item",
+			"qty": -1,  # Negative quantity for return
+			"rate": 10.00,
+			"amount": -10.00
+		})
+		
+		return_invoice.grand_total = -10.00
+		return_invoice.total = -10.00
+		return_invoice.insert()
+		return_invoice.submit()
+		
+		return {
+			"success": True,
+			"message": f"Test return invoice created: {return_invoice.name}",
+			"invoice_name": return_invoice.name,
+			"shift_name": shift_name
+		}
+		
+	except Exception as e:
+		return {
+			"success": False,
+			"error": str(e)
+		}
+
+

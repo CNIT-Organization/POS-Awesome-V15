@@ -350,17 +350,17 @@
     <div class="divider"></div>
 
     <!-- Sales Returns Section -->
-    {% if returns_count > 0 %}
+    {% if closing_shift.return_sales_count > 0 %}
     <div class="section returns-section">
         <div class="section-title">SALES RETURNS</div>
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Returns Total:</td>
-                <td class="summary-value returns-amount">{{ frappe.utils.fmt_money(returns_total, currency=currency) }}</td>
+                <td class="summary-value returns-amount">{{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}</td>
             </tr>
             <tr>
                 <td class="summary-label">Returns Count:</td>
-                <td class="summary-value">{{ returns_count }}</td>
+                <td class="summary-value">{{ closing_shift.return_sales_count }}</td>
             </tr>
         </table>
     </div>
@@ -396,11 +396,11 @@
                     </td>
                 </tr>
                 {% endif %}
-                {% if returns_total > 0 %}
+                {% if closing_shift.return_sales_total > 0 %}
                 <tr class="payment-row">
                     <td class="payment-type">Sales Returns</td>
                     <td class="payment-amount" style="color: #d32f2f;">
-                        -{{ frappe.utils.fmt_money(returns_total, currency=currency) }}
+                        -{{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
                     </td>
                 </tr>
                 {% endif %}
@@ -470,7 +470,7 @@
     {% endif %}
 
     <!-- Sales Returns Details Section -->
-    {% if returns_count > 0 %}
+    {% if closing_shift.return_sales_count > 0 %}
     <div class="section returns-section">
         <div class="section-title">SALES RETURNS DETAILS</div>
         <table class="items-table">
@@ -482,7 +482,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for return_inv in returns_list %}
+                {% for return_inv in sales_returns_data.returns %}
                 <tr class="item-row returns-row">
                     <td class="item-name">{{ return_inv.name[:15] }}{% if return_inv.name|length > 15 %}...{% endif %}</td>
                     <td class="item-qty">{{ return_inv.customer[:8] }}{% if return_inv.customer|length > 8 %}...{% endif %}</td>
@@ -495,10 +495,10 @@
             <tfoot>
                 <tr class="total-row">
                     <td class="item-name"><strong>TOTAL RETURNS:</strong></td>
-                    <td class="item-qty"><strong>{{ returns_count }}</strong></td>
+                    <td class="item-qty"><strong>{{ closing_shift.return_sales_count }}</strong></td>
                     <td class="item-amount">
                         <strong class="returns-amount">
-                            {{ frappe.utils.fmt_money(returns_total, currency=currency) }}
+                            {{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
                         </strong>
                     </td>
                 </tr>
