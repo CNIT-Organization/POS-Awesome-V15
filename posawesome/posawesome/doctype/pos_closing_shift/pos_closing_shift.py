@@ -743,6 +743,12 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Calculate grand total
 	grand_total = cash_sales_total + credit_sales_total
 	
+	# Calculate GROSS SALES (total of all sales before returns)
+	gross_sales = cash_sales_total + credit_sales_total
+	
+	# Calculate NET SALES (GROSS SALES - RETURNS)
+	net_sales = gross_sales - sales_returns_data.get('returns_total', 0)
+	
 	# Calculate total amount (payments + credit sales - sales returns)
 	total_amount = total_payments + credit_sales_total - sales_returns_data.get('returns_total', 0)
 	
@@ -774,6 +780,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"unpaid_invoices_count": unpaid_invoices_count,
 		"total_payments": total_payments,
 		"grand_total": grand_total,
+		"gross_sales": gross_sales,
+		"net_sales": net_sales,
 		"total_amount": total_amount,
 		"expected_cash_in_drawer": expected_cash_in_drawer,
 		"cash_over_short": cash_over_short,
