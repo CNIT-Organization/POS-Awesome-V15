@@ -916,7 +916,7 @@ def get_sales_returns_for_shift(pos_opening_shift):
 		print(f"DEBUG: Return sales: {return_sales}")
 		return {
 			"returns": return_sales,
-			"returns_total": sum(flt(return_inv.grand_total) for return_inv in return_sales),
+			"returns_total": sum(abs(flt(return_inv.grand_total)) for return_inv in return_sales),
 			"returns_count": len(return_sales)
 		}
 		
