@@ -225,13 +225,13 @@ export default {
 	},
 
 	/**
-	 * F4 Shortcut: Cash payment and print
+	 * F6 Shortcut: Cash payment and print
 	 * This shortcut should always use silent printing for better cashier experience
 	 * as it allows cashiers to handle more customers without waiting for print dialogs
 	 */
 	shortCashPaymentAndPrint(e) {
-		if (e.key === "F4") {
-			console.log("F4 key pressed - triggering cash payment and print");
+		if (e.key === "F6") {
+			console.log("F6 key pressed - triggering cash payment and print");
 			console.log("This shortcut should use silent printing for better cashier experience");
 			e.preventDefault();
 			e.stopPropagation();
@@ -240,28 +240,12 @@ export default {
 	},
 
 	shortSubmitAndPrint(e) {
-		if (e.key === "F6" || e.keyCode === 117 || e.which === 117) {
+		if (e.key === "F7" || e.keyCode === 118 || e.which === 118) {
 			e.preventDefault();
 			e.stopPropagation();
 			
-			// F6: Use existing built-in functions - same as clicking "Pay" then "Submit & Print"
+			// F7: Open payment dialog
 			this.eventBus.emit("show_payment", "true");
-			
-			// Listen for when payment page is ready, then submit
-			const checkPaymentReady = () => {
-				if (this.invoice_doc && this.invoice_doc.payments && this.invoice_doc.payments.length > 0) {
-					// Payment page is ready, submit with print
-					this.eventBus.emit("submit_with_print");
-					// Remove the listener since we don't need it anymore
-					this.eventBus.off("register_invoice", checkPaymentReady);
-				} else {
-					// Not ready yet, check again in 100ms
-					setTimeout(checkPaymentReady, 100);
-				}
-			};
-			
-			// Start checking after a short delay
-			setTimeout(checkPaymentReady, 200);
 		}
 	},
 
@@ -274,10 +258,19 @@ export default {
 	},
 
 	shortEditQuantity(e) {
-		if (e.key === "F5") {
+		if (e.key === "F8") {
 			e.preventDefault();
 			e.stopPropagation();
 			this.editQuantity();
+		}
+	},
+
+	shortSubmitAndPrintFromPayment(e) {
+		if (e.key === "F5") {
+			e.preventDefault();
+			e.stopPropagation();
+			// F5: Submit and print when in payment page
+			this.eventBus.emit("submit_with_print");
 		}
 	},
 
@@ -295,8 +288,9 @@ export default {
 				category: "🎯 Quick Actions",
 				shortcuts: [
 					{ key: "F1", description: "Show this shortcuts help dialog" },
-					{ key: "F4", description: "Quick cash payment → submit → print" },
-					{ key: "F6", description: "Submit current invoice and print directly" },
+					{ key: "F6", description: "Quick cash payment → submit → print" },
+					{ key: "F7", description: "Submit current invoice and print directly" },
+					{ key: "F5", description: "Submit and print when payment page is open" },
 					{ key: "End", description: "Recall today's invoices with Return/Print options" }
 				]
 			},
@@ -304,7 +298,7 @@ export default {
 				category: "📝 Item Management",
 				shortcuts: [
 					{ key: "/", description: "Edit price of first item" },
-					{ key: "F5", description: "Edit quantity of first item (popup)" },
+					{ key: "F8", description: "Edit quantity of first item (popup)" },
 					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
 					{ key: "Ctrl+D", description: "Delete first item from invoice" }
 				]
@@ -320,8 +314,9 @@ export default {
 			{
 				category: "🖨️ Printing & Receipts",
 				shortcuts: [
-					{ key: "F4", description: "Auto-print after cash payment" },
-					{ key: "F6", description: "Submit and print current invoice" },
+					{ key: "F6", description: "Auto-print after cash payment" },
+					{ key: "F7", description: "Submit and print current invoice" },
+					{ key: "F5", description: "Submit and print when payment page is open" },
 					{ key: "End → Print", description: "Print any today's invoice" }
 				]
 			},
@@ -369,10 +364,11 @@ export default {
 				<div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
 					<h4 style="margin: 0 0 10px 0; color: #856404;">💡 Pro Tips:</h4>
 					<ul style="margin: 0; padding-left: 20px; color: #856404;">
-						<li>Use <strong>F4</strong> for quick cash transactions</li>
-						<li>Use <strong>F6</strong> to submit and print current invoice</li>
+						<li>Use <strong>F6</strong> for quick cash transactions</li>
+						<li>Use <strong>F7</strong> to submit and print current invoice</li>
+						<li>Use <strong>F5</strong> to submit and print when payment page is open</li>
 						<li>Press <strong>End</strong> to find and reprint today's invoices</li>
-						<li>Use <strong>/</strong> and <strong>.</strong> to quickly edit first item</li>
+						<li>Use <strong>/</strong> and <strong>F8</strong> to quickly edit first item</li>
 						<li>Hold invoices for later with the <strong>Hold</strong> button</li>
 					</ul>
 				</div>
@@ -396,12 +392,13 @@ export default {
 	printShortcutsHelp() {
 		const shortcuts = [
 			{ key: "F1", description: "Show shortcuts help" },
-			{ key: "F4", description: "Quick cash payment → submit → print" },
-			{ key: "F6", description: "Submit current invoice and print directly" },
+			{ key: "F6", description: "Quick cash payment → submit → print" },
+			{ key: "F7", description: "Submit current invoice and print directly" },
+			{ key: "F5", description: "Submit and print when payment page is open" },
 			{ key: "Home", description: "Open cash drawer" },
 			{ key: "End", description: "Recall today's invoices" },
 			{ key: "/", description: "Edit price of first item" },
-			{ key: "F5", description: "Edit quantity of first item" },
+			{ key: "F8", description: "Edit quantity of first item" },
 			{ key: "Ctrl+A", description: "Toggle first item details" },
 			{ key: "Ctrl+D", description: "Delete first item" },
 			{ key: "Ctrl+S", description: "Open payment dialog" },
@@ -500,15 +497,24 @@ export default {
 		const dialog = frappe.msgprint({
 			title: __("Select Invoice to Recall"),
 			message: `
-				<div style="max-height: 300px; overflow-y: auto;">
+				<div style="max-height: 400px; overflow-y: auto;">
 					${invoices.map((invoice, index) => `
-						<div style="padding: 8px; border-bottom: 1px solid #eee; margin-bottom: 8px;">
-							<div style="font-weight: bold;">${invoice.name}</div>
-							<div style="font-size: 12px; color: #666;">${invoice.customer_name || invoice.customer}</div>
-							<div style="font-size: 12px; color: #666;">${invoice.posting_date} - ${this.formatCurrency(invoice.grand_total)}</div>
+						<div style="padding: 12px; border: 1px solid #ddd; margin-bottom: 12px; border-radius: 6px; background: #f9f9f9;">
+							<div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${invoice.name}</div>
+							<div style="font-size: 12px; color: #666; margin-bottom: 4px;">Customer: ${invoice.customer_name || invoice.customer}</div>
+							<div style="font-size: 12px; color: #666; margin-bottom: 8px;">Date: ${invoice.posting_date} - Total: ${this.formatCurrency(invoice.grand_total)}</div>
+							<div style="margin-bottom: 8px;">
+								<strong style="font-size: 12px;">Items:</strong>
+								<div style="margin-left: 10px; font-size: 11px; color: #555;">
+									${invoice.items ? invoice.items.slice(0, 5).map(item => 
+										`<div>• ${item.item_name || item.item_code} (Qty: ${item.qty}) - ${this.formatCurrency(item.amount)}</div>`
+									).join('') : '<div>No items found</div>'}
+									${invoice.items && invoice.items.length > 5 ? `<div style="color: #999;">... and ${invoice.items.length - 5} more items</div>` : ''}
+								</div>
+							</div>
 							<div style="margin-top: 8px;">
-								<button onclick="window.recallInvoice('${invoice.name}')" style="background: #4CAF50; color: white; border: none; padding: 4px 8px; margin-right: 4px; cursor: pointer;">Return</button>
-								<button onclick="window.printInvoice('${invoice.name}')" style="background: #2196F3; color: white; border: none; padding: 4px 8px; cursor: pointer;">Print</button>
+								<button onclick="window.recallInvoice('${invoice.name}')" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; margin-right: 6px; cursor: pointer; border-radius: 4px;">Return</button>
+								<button onclick="window.printInvoice('${invoice.name}')" style="background: #2196F3; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px;">Print</button>
 							</div>
 						</div>
 					`).join('')}
@@ -1152,6 +1158,14 @@ export default {
 						
 						// Clear the invoice for next use
 						this.eventBus.emit("clear_invoice");
+						
+						// Focus on item search after print
+						this.$nextTick(() => {
+							const itemSearchRef = this.$parent?.$refs?.items_selector?.$refs?.debounce_search;
+							if (itemSearchRef) {
+								itemSearchRef.focus();
+							}
+						});
 					} else {
 						this.eventBus.emit("show_message", {
 							title: __("Invoice submitted but print failed"),
@@ -1359,6 +1373,14 @@ export default {
 						
 						// Clear the invoice for next use
 						this.eventBus.emit("clear_invoice");
+						
+						// Focus on item search after print
+						this.$nextTick(() => {
+							const itemSearchRef = this.$parent?.$refs?.items_selector?.$refs?.debounce_search;
+							if (itemSearchRef) {
+								itemSearchRef.focus();
+							}
+						});
 					} else {
 						this.eventBus.emit("show_message", {
 							title: __("Invoice submitted but print failed"),

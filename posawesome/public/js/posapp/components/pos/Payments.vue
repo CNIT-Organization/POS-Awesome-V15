@@ -1868,6 +1868,12 @@ export default {
 					this.is_credit_return = false;
 				}
 				this.loyalty_amount = 0;
+				
+				// Focus on cash payment field after a short delay
+				setTimeout(() => {
+					this.focusCashPaymentField();
+				}, 300);
+				
 				if (invoice_doc.customer) {
 					this.get_addresses();
 				}
@@ -1966,6 +1972,32 @@ export default {
 		this.eventBus.off("register_invoice");
 		this.eventBus.off("register_customer_info");
 	},
+	
+	/**
+	 * Focus on the cash payment field when payment page opens
+	 */
+	focusCashPaymentField() {
+		try {
+			// Find the cash payment field by looking for input with cash payment mode
+			const cashPaymentInput = document.querySelector('input[data-mode-of-payment*="cash" i], input[data-mode-of-payment*="Cash" i]');
+			if (cashPaymentInput) {
+				cashPaymentInput.focus();
+				cashPaymentInput.select();
+				console.log("Focused on cash payment field");
+			} else {
+				// Fallback: focus on the first payment input field
+				const firstPaymentInput = document.querySelector('.payments input[type="text"]');
+				if (firstPaymentInput) {
+					firstPaymentInput.focus();
+					firstPaymentInput.select();
+					console.log("Focused on first payment field as fallback");
+				}
+			}
+		} catch (error) {
+			console.warn("Could not focus on cash payment field:", error);
+		}
+	},
+	
 	// Lifecycle hook: unmounted
 	unmounted() {
 		// Remove keyboard shortcut listener

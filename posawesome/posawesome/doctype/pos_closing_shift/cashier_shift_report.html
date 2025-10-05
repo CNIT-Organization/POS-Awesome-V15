@@ -254,7 +254,8 @@
         <div class="report-info">
             Date: {{ frappe.utils.formatdate(report_date) }}<br>
             Time: {{ frappe.utils.format_time(report_time) }}<br>
-            Cashier: {{ user.full_name or user.name }}
+            Cashier: {{ user.full_name or user.name }}<br>
+            POS Shift: {{ closing_shift.name }}
         </div>
         
         <!-- Net Sales in Header -->
