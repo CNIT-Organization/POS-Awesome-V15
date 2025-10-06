@@ -11,7 +11,7 @@ This document describes the keyboard shortcuts available in POS Awesome.
   - Option to print shortcuts for reference
 
 ### Payment and Invoice Management
-- **Ctrl+S** - Open payment dialog
+- **F4** - Open payment dialog
 - **Ctrl+X** - Submit payment (when in payment screen)
 - **Ctrl+D** - Delete first item from invoice
 - **Ctrl+A** - Toggle expand/collapse first item details
@@ -33,7 +33,7 @@ This document describes the keyboard shortcuts available in POS Awesome.
   - Useful for reprinting or modifying today's invoices
 
 #### Quick Cash Payment
-- **F4** - Cash payment and print
+- **F6** - Cash payment and print
   - Automatically sets cash as the payment method
   - Sets the payment amount to the full invoice total
   - Submits the invoice and prints it automatically
@@ -44,7 +44,7 @@ This document describes the keyboard shortcuts available in POS Awesome.
   - Focuses on the price field of the first item
   - Useful for quick price adjustments
 
-- **.** (Period) - Edit quantity
+- **F7** - Edit quantity
   - Shows a popup dialog to change quantity of the first item
   - Useful for quick quantity adjustments
 
@@ -126,13 +126,13 @@ The shortcuts are implemented in:
 | Key | Action | Category |
 |-----|--------|----------|
 | F1 | Show shortcuts help | Help |
-| F4 | Quick cash payment & print | Quick Actions |
+| F4 | Open payment dialog | Payment & Invoice |
+| F6 | Quick cash payment & print | Quick Actions |
+| F7 | Edit quantity of first item | Item Management |
 | Home | Open cash drawer | Quick Actions |
 | End | Recall today's invoices | Quick Actions |
 | / | Edit price of first item | Item Management |
-| . | Edit quantity of first item | Item Management |
 | Ctrl+A | Toggle first item details | Item Management |
 | Ctrl+D | Delete first item | Item Management |
-| Ctrl+S | Open payment dialog | Payment & Invoice |
 | Ctrl+E | Focus discount field | Payment & Invoice |
 | Ctrl+X | Submit payment | Payment & Invoice | 

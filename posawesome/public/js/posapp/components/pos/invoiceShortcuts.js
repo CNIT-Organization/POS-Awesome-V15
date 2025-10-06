@@ -239,13 +239,23 @@ export default {
 		}
 	},
 
-	shortSubmitAndPrint(e) {
+	shortEditQuantityF7(e) {
 		if (e.key === "F7" || e.keyCode === 118 || e.which === 118) {
 			e.preventDefault();
 			e.stopPropagation();
 			
-			// F7: Open payment dialog
-			this.eventBus.emit("show_payment", "true");
+			// F7: Edit quantity of first item
+			this.editQuantity();
+		}
+	},
+
+	shortOpenPaymentF4(e) {
+		if (e.key === "F4" || e.keyCode === 115 || e.which === 115) {
+			e.preventDefault();
+			e.stopPropagation();
+			
+			// F4: Open payment dialog (moved from Ctrl+S)
+			this.show_payment();
 		}
 	},
 
@@ -288,8 +298,9 @@ export default {
 				category: "🎯 Quick Actions",
 				shortcuts: [
 					{ key: "F1", description: "Show this shortcuts help dialog" },
+					{ key: "F4", description: "Open payment dialog" },
 					{ key: "F6", description: "Quick cash payment → submit → print" },
-					{ key: "F7", description: "Submit current invoice and print directly" },
+					{ key: "F7", description: "Edit quantity of first item" },
 					{ key: "F5", description: "Submit and print when payment page is open" },
 					{ key: "End", description: "Recall today's invoices with Return/Print options" }
 				]
@@ -298,7 +309,7 @@ export default {
 				category: "📝 Item Management",
 				shortcuts: [
 					{ key: "/", description: "Edit price of first item" },
-					{ key: "F8", description: "Edit quantity of first item (popup)" },
+					{ key: "F7", description: "Edit quantity of first item (popup)" },
 					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
 					{ key: "Ctrl+D", description: "Delete first item from invoice" }
 				]
@@ -306,7 +317,7 @@ export default {
 			{
 				category: "💰 Payment & Invoice",
 				shortcuts: [
-					{ key: "Ctrl+S", description: "Open payment dialog" },
+					{ key: "F4", description: "Open payment dialog" },
 					{ key: "Ctrl+E", description: "Focus discount field" },
 					{ key: "Ctrl+X", description: "Submit payment (when in payment screen)" }
 				]
@@ -315,7 +326,6 @@ export default {
 				category: "🖨️ Printing & Receipts",
 				shortcuts: [
 					{ key: "F6", description: "Auto-print after cash payment" },
-					{ key: "F7", description: "Submit and print current invoice" },
 					{ key: "F5", description: "Submit and print when payment page is open" },
 					{ key: "End → Print", description: "Print any today's invoice" }
 				]
@@ -392,16 +402,15 @@ export default {
 	printShortcutsHelp() {
 		const shortcuts = [
 			{ key: "F1", description: "Show shortcuts help" },
+			{ key: "F4", description: "Open payment dialog" },
 			{ key: "F6", description: "Quick cash payment → submit → print" },
-			{ key: "F7", description: "Submit current invoice and print directly" },
+			{ key: "F7", description: "Edit quantity of first item" },
 			{ key: "F5", description: "Submit and print when payment page is open" },
 			{ key: "Home", description: "Open cash drawer" },
 			{ key: "End", description: "Recall today's invoices" },
 			{ key: "/", description: "Edit price of first item" },
-			{ key: "F8", description: "Edit quantity of first item" },
 			{ key: "Ctrl+A", description: "Toggle first item details" },
 			{ key: "Ctrl+D", description: "Delete first item" },
-			{ key: "Ctrl+S", description: "Open payment dialog" },
 			{ key: "Ctrl+E", description: "Focus discount field" },
 			{ key: "Ctrl+X", description: "Submit payment" }
 		];

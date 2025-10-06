@@ -1215,7 +1215,8 @@ export default {
 		document.addEventListener("keydown", this.shortEditQuantity.bind(this));
 		document.addEventListener("keydown", this.shortShowShortcutsHelp.bind(this));
 		document.addEventListener("keydown", this.shortOpenCashDrawer.bind(this));
-		document.addEventListener("keydown", this.shortSubmitAndPrint.bind(this));
+		document.addEventListener("keydown", this.shortEditQuantityF7.bind(this));
+		document.addEventListener("keydown", this.shortOpenPaymentF4.bind(this));
 		document.addEventListener("keydown", this.shortSubmitAndPrintFromPayment.bind(this));
 	},
 	// Remove global keyboard shortcuts when component is unmounted
@@ -1231,7 +1232,8 @@ export default {
 		document.removeEventListener("keydown", this.shortEditQuantity);
 		document.removeEventListener("keydown", this.shortShowShortcutsHelp);
 		document.removeEventListener("keydown", this.shortOpenCashDrawer);
-		document.removeEventListener("keydown", this.shortSubmitAndPrint);
+		document.removeEventListener("keydown", this.shortEditQuantityF7);
+		document.removeEventListener("keydown", this.shortOpenPaymentF4);
 		document.removeEventListener("keydown", this.shortSubmitAndPrintFromPayment);
 	},
 	watch: invoiceWatchers,
