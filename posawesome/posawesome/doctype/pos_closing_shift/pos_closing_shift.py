@@ -51,19 +51,27 @@ class POSClosingShift(Document):
 
 	def update_credit_sales_info(self):
 		"""
-		Update credit sales total and unpaid invoices count from unpaid invoices
+		Update credit sales total and populate credit sales details from unpaid invoices
 		"""
 		if self.pos_opening_shift:
 			unpaid_invoices = get_unpaid_invoices(self.pos_opening_shift)
 			credit_sales_total = 0
-			unpaid_count = 0
+			
+			# Clear existing credit sales details
+			self.credit_sales_details = []
 			
 			for invoice in unpaid_invoices:
 				credit_sales_total += flt(invoice.outstanding_amount)
-				unpaid_count += 1
+				
+				# Add to credit sales details child table
+				self.append("credit_sales_details", {
+					"sales_invoice": invoice.name,
+					"customer": invoice.customer,
+					"customer_name": invoice.get("customer_name", ""),
+					"outstanding_amount": flt(invoice.outstanding_amount)
+				})
 			
 			self.credit_sales_total = credit_sales_total
-			self.unpaid_invoices_count = unpaid_count
 
 	def on_submit(self):
 		opening_entry = frappe.get_doc("POS Opening Shift", self.pos_opening_shift)
@@ -248,6 +256,7 @@ def get_unpaid_invoices(pos_opening_shift):
 			grand_total,
 			outstanding_amount,
 			customer,
+			customer_name,
 			posting_date,
 			docstatus
 		from
@@ -461,9 +470,11 @@ def make_closing_shift_from_opening(opening_shift):
 	closing_shift.net_total = 0
 	closing_shift.total_quantity = 0
 	closing_shift.credit_sales_total = 0
-	closing_shift.unpaid_invoices_count = 0
 
 	invoices = get_pos_invoices(opening_shift.get("name"))
+	
+	# Get unpaid invoices for credit sales
+	unpaid_invoices = get_unpaid_invoices(opening_shift.get("name"))
 	
 	# Get return sales for this shift
 	return_sales_data = get_sales_returns_for_shift(opening_shift.get("name"))
@@ -476,6 +487,8 @@ def make_closing_shift_from_opening(opening_shift):
 	taxes = []
 	payments = []
 	pos_payments_table = []
+	credit_sales_list = []
+	
 	for detail in opening_shift.get("balance_details"):
 		payments.append(
 			frappe._dict(
@@ -486,6 +499,20 @@ def make_closing_shift_from_opening(opening_shift):
 				}
 			)
 		)
+	
+	# Populate credit sales details
+	for unpaid_invoice in unpaid_invoices:
+		credit_sales_list.append(
+			frappe._dict(
+				{
+					"sales_invoice": unpaid_invoice.name,
+					"customer": unpaid_invoice.customer,
+					"customer_name": unpaid_invoice.get("customer_name", ""),
+					"outstanding_amount": flt(unpaid_invoice.outstanding_amount)
+				}
+			)
+		)
+		closing_shift.credit_sales_total += flt(unpaid_invoice.outstanding_amount)
 
 	for d in invoices:
 		pos_transactions.append(
@@ -501,11 +528,6 @@ def make_closing_shift_from_opening(opening_shift):
 		closing_shift.grand_total += flt(d.grand_total)
 		closing_shift.net_total += flt(d.net_total)
 		closing_shift.total_quantity += flt(d.total_qty)
-
-		# Check if this is a credit sale (unpaid invoice)
-		if d.outstanding_amount > 0:
-			closing_shift.credit_sales_total += flt(d.outstanding_amount)
-			closing_shift.unpaid_invoices_count += 1
 
 		for t in d.taxes:
 			existing_tax = [tx for tx in taxes if tx.account_head == t.account_head and tx.rate == t.rate]
@@ -580,6 +602,7 @@ def make_closing_shift_from_opening(opening_shift):
 	closing_shift.set("payment_reconciliation", payments)
 	closing_shift.set("taxes", taxes)
 	closing_shift.set("pos_payments", pos_payments_table)
+	closing_shift.set("credit_sales_details", credit_sales_list)
 
 	return closing_shift
 

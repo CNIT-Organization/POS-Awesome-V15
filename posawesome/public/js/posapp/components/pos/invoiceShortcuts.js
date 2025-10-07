@@ -74,6 +74,26 @@ export default {
 		}
 	},
 
+	shortDeleteLastItem(e) {
+		if (e.key === "z" && (e.ctrlKey || e.metaKey)) {
+			e.preventDefault();
+			e.stopPropagation();
+			if (!this.items || this.items.length === 0) {
+				this.eventBus.emit("show_message", {
+					title: __("No items in cart to remove"),
+					color: "warning",
+				});
+				return;
+			}
+			const lastItem = this.items[this.items.length - 1];
+			this.remove_item(lastItem);
+			this.eventBus.emit("show_message", {
+				title: __("Last item removed from cart"),
+				color: "info",
+			});
+		}
+	},
+
 	shortSelectDiscount(e) {
 		console.log("Shortcut pressed:", e.key, e.ctrlKey);
 		if (e.key.toLowerCase() === "e" && (e.ctrlKey || e.metaKey)) {
@@ -311,7 +331,8 @@ export default {
 					{ key: "/", description: "Edit price of first item" },
 					{ key: "F7", description: "Edit quantity of first item (popup)" },
 					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
-					{ key: "Ctrl+D", description: "Delete first item from invoice" }
+					{ key: "Ctrl+D", description: "Delete first item from invoice" },
+					{ key: "Ctrl+Z", description: "Remove last added item from cart" }
 				]
 			},
 			{
@@ -411,6 +432,7 @@ export default {
 			{ key: "/", description: "Edit price of first item" },
 			{ key: "Ctrl+A", description: "Toggle first item details" },
 			{ key: "Ctrl+D", description: "Delete first item" },
+			{ key: "Ctrl+Z", description: "Remove last added item" },
 			{ key: "Ctrl+E", description: "Focus discount field" },
 			{ key: "Ctrl+X", description: "Submit payment" }
 		];
