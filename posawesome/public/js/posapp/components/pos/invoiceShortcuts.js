@@ -68,7 +68,7 @@ export default {
 	},
 
 	shortDeleteFirstItem(e) {
-		if (e.key === "d" && (e.ctrlKey || e.metaKey)) {
+		if (e.key === "F10") {
 			e.preventDefault();
 			this.remove_item(this.items[0]);
 		}
@@ -331,7 +331,7 @@ export default {
 					{ key: "/", description: "Edit price of first item" },
 					{ key: "F7", description: "Edit quantity of first item (popup)" },
 					{ key: "Ctrl+A", description: "Toggle expand/collapse first item details" },
-					{ key: "Ctrl+D", description: "Delete first item from invoice" },
+					{ key: "F10", description: "Delete first item from invoice" },
 					{ key: "Ctrl+Z", description: "Remove last added item from cart" }
 				]
 			},
@@ -431,7 +431,7 @@ export default {
 			{ key: "End", description: "Recall today's invoices" },
 			{ key: "/", description: "Edit price of first item" },
 			{ key: "Ctrl+A", description: "Toggle first item details" },
-			{ key: "Ctrl+D", description: "Delete first item" },
+			{ key: "F10", description: "Delete first item" },
 			{ key: "Ctrl+Z", description: "Remove last added item" },
 			{ key: "Ctrl+E", description: "Focus discount field" },
 			{ key: "Ctrl+X", description: "Submit payment" }
