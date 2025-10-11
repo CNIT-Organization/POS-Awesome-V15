@@ -273,6 +273,40 @@ def get_unpaid_invoices(pos_opening_shift):
 
 
 @frappe.whitelist()
+def get_overdue_invoices(pos_opening_shift):
+	"""
+	Get overdue invoices for a specific POS shift
+	"""
+	if not pos_opening_shift:
+		return []
+	
+	# Get overdue invoices for this shift
+	overdue_invoices = frappe.db.sql(
+		"""
+		select
+			name,
+			grand_total,
+			outstanding_amount,
+			customer,
+			customer_name,
+			posting_date,
+			status,
+			docstatus
+		from
+			`tabSales Invoice`
+		where
+			posa_pos_opening_shift = %s
+			and docstatus = 1
+			and outstanding_amount > 0
+			and (status = 'Overdue' or status = 'Overdue and Discounted')
+		""",
+		(pos_opening_shift),
+		as_dict=1,
+	)
+	return overdue_invoices
+
+
+@frappe.whitelist()
 def get_closing_shift_credit_sales(closing_shift_name):
 	"""
 	Get credit sales information for a specific POS Closing Shift
@@ -470,11 +504,15 @@ def make_closing_shift_from_opening(opening_shift):
 	closing_shift.net_total = 0
 	closing_shift.total_quantity = 0
 	closing_shift.credit_sales_total = 0
+	closing_shift.overdue_sales_total = 0
 
 	invoices = get_pos_invoices(opening_shift.get("name"))
 	
 	# Get unpaid invoices for credit sales
 	unpaid_invoices = get_unpaid_invoices(opening_shift.get("name"))
+	
+	# Get overdue invoices
+	overdue_invoices = get_overdue_invoices(opening_shift.get("name"))
 	
 	# Get return sales for this shift
 	return_sales_data = get_sales_returns_for_shift(opening_shift.get("name"))
@@ -513,6 +551,10 @@ def make_closing_shift_from_opening(opening_shift):
 			)
 		)
 		closing_shift.credit_sales_total += flt(unpaid_invoice.outstanding_amount)
+	
+	# Calculate overdue sales total
+	for overdue_invoice in overdue_invoices:
+		closing_shift.overdue_sales_total += flt(overdue_invoice.outstanding_amount)
 
 	for d in invoices:
 		pos_transactions.append(
@@ -652,11 +694,18 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get unpaid invoices (credit sales) for this shift
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
+	# Get overdue invoices for this shift
+	overdue_invoices = get_overdue_invoices(closing_shift_doc.pos_opening_shift)
+	
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
 	# Get sales returns for this shift
 	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
+	
+	# Calculate overdue sales total
+	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
+	overdue_invoices_count = len(overdue_invoices)
 	
 	# Prepare data for template
 	report_data = {
@@ -666,11 +715,14 @@ def print_cashier_shift_report(closing_shift_name):
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
+		"overdue_invoices": overdue_invoices,
 		"petty_cash_data": petty_cash_data,
 		"sales_returns_data": sales_returns_data,
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
+		"overdue_sales_total": overdue_sales_total,
+		"overdue_invoices_count": overdue_invoices_count,
 		# Sales returns simplified variables
 		"returns_total": sales_returns_data.get('returns_total', 0),
 		"returns_count": sales_returns_data.get('returns_count', 0),
@@ -729,6 +781,9 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get unpaid invoices (credit sales) for this shift
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
+	# Get overdue invoices for this shift
+	overdue_invoices = get_overdue_invoices(closing_shift_doc.pos_opening_shift)
+	
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
@@ -760,20 +815,24 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	credit_sales_total = sum(flt(invoice.outstanding_amount) for invoice in unpaid_invoices)
 	unpaid_invoices_count = len(unpaid_invoices)
 	
+	# Calculate overdue sales from overdue invoices
+	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
+	overdue_invoices_count = len(overdue_invoices)
+	
 	# Calculate total payments (excluding credit sales and opening amounts)
 	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation)
 	
 	# Calculate grand total
-	grand_total = cash_sales_total + credit_sales_total
+	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
 	
 	# Calculate GROSS SALES (total of all sales before returns)
-	gross_sales = cash_sales_total + credit_sales_total
+	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
 	
 	# Calculate NET SALES (GROSS SALES - RETURNS)
 	net_sales = gross_sales - sales_returns_data.get('returns_total', 0)
 	
-	# Calculate total amount (payments + credit sales - sales returns)
-	total_amount = total_payments + credit_sales_total - sales_returns_data.get('returns_total', 0)
+	# Calculate total amount (payments + credit sales + overdue sales - sales returns)
+	total_amount = total_payments + credit_sales_total + overdue_sales_total - sales_returns_data.get('returns_total', 0)
 	
 	# Calculate expected cash in drawer (opening cash + cash sales + pay in - pay out)
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
@@ -791,6 +850,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"pos_profile": pos_profile,
 		"items_sold": items_sold,
 		"unpaid_invoices": unpaid_invoices,
+		"overdue_invoices": overdue_invoices,
 		"petty_cash_data": petty_cash_data,
 		"sales_returns_data": sales_returns_data,
 		"currency": company.default_currency,
@@ -801,6 +861,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"cash_sales_total": cash_sales_total,
 		"credit_sales_total": credit_sales_total,
 		"unpaid_invoices_count": unpaid_invoices_count,
+		"overdue_sales_total": overdue_sales_total,
+		"overdue_invoices_count": overdue_invoices_count,
 		"total_payments": total_payments,
 		"grand_total": grand_total,
 		"gross_sales": gross_sales,

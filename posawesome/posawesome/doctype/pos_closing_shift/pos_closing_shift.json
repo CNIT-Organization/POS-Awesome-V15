@@ -134,26 +134,33 @@
    "label": "Payment Reconciliation",
    "options": "POS Closing Shift Detail"
   },
-  {
-   "collapsible": 1,
-   "fieldname": "section_break_credit_sales",
-   "fieldtype": "Section Break",
-   "label": "Credit Sales"
-  },
-  {
-   "default": "0",
-   "fieldname": "credit_sales_total",
-   "fieldtype": "Currency",
-   "label": "Credit Sales Total",
-   "read_only": 1
-  },
-  {
-   "fieldname": "credit_sales_details",
-   "fieldtype": "Table",
-   "label": "Credit Sales Details",
-   "options": "POS Closing Shift Credit Sales",
-   "read_only": 1
-  },
+ {
+  "collapsible": 1,
+  "fieldname": "section_break_credit_sales",
+  "fieldtype": "Section Break",
+  "label": "Credit Sales"
+ },
+ {
+  "default": "0",
+  "fieldname": "credit_sales_total",
+  "fieldtype": "Currency",
+  "label": "Credit Sales Total",
+  "read_only": 1
+ },
+ {
+  "fieldname": "credit_sales_details",
+  "fieldtype": "Table",
+  "label": "Credit Sales Details",
+  "options": "POS Closing Shift Credit Sales",
+  "read_only": 1
+ },
+ {
+  "default": "0",
+  "fieldname": "overdue_sales_total",
+  "fieldtype": "Currency",
+  "label": "Overdue Sales Total",
+  "read_only": 1
+ },
   {
    "collapsible": 1,
    "collapsible_depends_on": "eval:doc.docstatus==0",

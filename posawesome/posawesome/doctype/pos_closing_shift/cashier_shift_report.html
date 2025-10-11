@@ -416,6 +416,14 @@
                     </td>
                 </tr>
                 {% endif %}
+                {% if overdue_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Overdue</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(overdue_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
                 {% if closing_shift.return_sales_total > 0 %}
                 <tr class="payment-row">
                     <td class="payment-type">Sales Returns</td>
