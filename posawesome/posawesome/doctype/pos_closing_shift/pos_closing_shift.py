@@ -703,9 +703,39 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get sales returns for this shift
 	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Calculate overdue sales total
+	# Calculate all totals in Python (same logic as direct_print function)
+	opening_cash_balance = 0
+	returns_total = sales_returns_data.get('returns_total', 0)
+	cash_sales_total = 0
+	cash_sales_net = 0
+	cash_payment_found = False
+	cash_closing_amount = 0
+	
+	for payment in closing_shift_doc.payment_reconciliation:
+		payment_mode = payment.mode_of_payment.lower()
+		if 'cash' in payment_mode or payment.mode_of_payment == 'Cash':
+			opening_cash_balance = flt(payment.opening_amount or 0)
+			cash_sales_net = flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0)
+			cash_sales_total = cash_sales_net + returns_total
+			cash_payment_found = True
+			cash_closing_amount = flt(payment.closing_amount or 0)
+	
+	credit_sales_total = sum(flt(invoice.outstanding_amount) for invoice in unpaid_invoices)
+	unpaid_invoices_count = len(unpaid_invoices)
+	
 	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
 	overdue_invoices_count = len(overdue_invoices)
+	
+	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation) + returns_total
+	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
+	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
+	net_sales = gross_sales - returns_total
+	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total
+	
+	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
+	pay_out_amount = flt(petty_cash_data.get('pay_out_total', 0) or 0)
+	expected_cash_in_drawer = opening_cash_balance + cash_sales_net + pay_in_amount - pay_out_amount
+	cash_over_short = cash_closing_amount - expected_cash_in_drawer if cash_payment_found else 0
 	
 	# Prepare data for template
 	report_data = {
@@ -721,8 +751,24 @@ def print_cashier_shift_report(closing_shift_name):
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
+		# Pre-calculated values
+		"opening_balance": opening_cash_balance,
+		"cash_sales_total": cash_sales_total,
+		"credit_sales_total": credit_sales_total,
+		"unpaid_invoices_count": unpaid_invoices_count,
 		"overdue_sales_total": overdue_sales_total,
 		"overdue_invoices_count": overdue_invoices_count,
+		"total_payments": total_payments,
+		"grand_total": grand_total,
+		"gross_sales": gross_sales,
+		"net_sales": net_sales,
+		"total_amount": total_amount,
+		"expected_cash_in_drawer": expected_cash_in_drawer,
+		"cash_over_short": cash_over_short,
+		"cash_payment_found": cash_payment_found,
+		"cash_closing_amount": cash_closing_amount,
+		"pay_in_amount": pay_in_amount,
+		"pay_out_amount": pay_out_amount,
 		# Sales returns simplified variables
 		"returns_total": sales_returns_data.get('returns_total', 0),
 		"returns_count": sales_returns_data.get('returns_count', 0),
@@ -796,8 +842,12 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Opening balance should only include cash (not Knet or other payment methods)
 	opening_cash_balance = 0
 	
+	# Get returns total to add back to gross calculations
+	returns_total = sales_returns_data.get('returns_total', 0)
+	
 	# Calculate cash sales (look for various cash-related payment modes)
-	cash_sales_total = 0
+	cash_sales_total = 0  # This will be GROSS (before returns)
+	cash_sales_net = 0    # This will be NET (after returns) - used for cash drawer calculation
 	cash_payment_found = False
 	cash_closing_amount = 0
 	
@@ -806,8 +856,10 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		if 'cash' in payment_mode or payment.mode_of_payment == 'Cash':
 			# Opening amount is the initial cash in drawer
 			opening_cash_balance = flt(payment.opening_amount or 0)
-			# Cash sales is the expected amount MINUS opening amount (actual sales only)
-			cash_sales_total = flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0)
+			# Cash sales NET (actual cash collected, returns already subtracted by system)
+			cash_sales_net = flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0)
+			# Cash sales GROSS (add back returns to show total sales before returns)
+			cash_sales_total = cash_sales_net + returns_total
 			cash_payment_found = True
 			cash_closing_amount = flt(payment.closing_amount or 0)
 	
@@ -819,8 +871,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
 	overdue_invoices_count = len(overdue_invoices)
 	
-	# Calculate total payments (excluding credit sales and opening amounts)
-	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation)
+	# Calculate total payments GROSS (add back returns since expected_amount already has returns subtracted)
+	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation) + returns_total
 	
 	# Calculate grand total
 	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
@@ -828,16 +880,17 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Calculate GROSS SALES (total of all sales before returns)
 	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
 	
-	# Calculate NET SALES (GROSS SALES - RETURNS)
-	net_sales = gross_sales - sales_returns_data.get('returns_total', 0)
+	# Calculate NET SALES (GROSS SALES - RETURNS) - now returns are subtracted only once
+	net_sales = gross_sales - returns_total
 	
-	# Calculate total amount (payments + credit sales + overdue sales - sales returns)
-	total_amount = total_payments + credit_sales_total + overdue_sales_total - sales_returns_data.get('returns_total', 0)
+	# Calculate total amount (payments + credit sales + overdue sales - returns subtracted only once)
+	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total
 	
-	# Calculate expected cash in drawer (opening cash + cash sales + pay in - pay out)
+	# Calculate expected cash in drawer (opening cash + NET cash sales + pay in - pay out)
+	# Use cash_sales_net because returns were already refunded, so we use actual cash collected
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
 	pay_out_amount = flt(petty_cash_data.get('pay_out_total', 0) or 0)
-	expected_cash_in_drawer = opening_cash_balance + cash_sales_total + pay_in_amount - pay_out_amount
+	expected_cash_in_drawer = opening_cash_balance + cash_sales_net + pay_in_amount - pay_out_amount
 	
 	# Calculate cash over/short
 	cash_over_short = cash_closing_amount - expected_cash_in_drawer if cash_payment_found else 0

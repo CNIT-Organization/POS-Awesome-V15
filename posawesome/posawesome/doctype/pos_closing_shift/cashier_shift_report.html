@@ -403,11 +403,20 @@
                 <tr class="payment-row">
                     <td class="payment-type">{{ payment.mode_of_payment[:12] }}{% if payment.mode_of_payment|length > 12 %}...{% endif %}</td>
                     <td class="payment-amount">
-                        <!-- For ALL payment methods, show only sales amount (not opening + sales) -->
+                        <!-- Payment amount (net, but returns will be added back in total_payments) -->
                         {{ frappe.utils.fmt_money((payment.expected_amount or 0) - (payment.opening_amount or 0), currency=currency) }}
                     </td>
                 </tr>
                 {% endfor %}
+                <!-- Add back returns as a positive line to show gross before subtracting -->
+                {% if closing_shift.return_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Returns Add-Back</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
                 {% if credit_sales_total > 0 %}
                 <tr class="payment-row">
                     <td class="payment-type">Credit Sale</td>
@@ -424,6 +433,7 @@
                     </td>
                 </tr>
                 {% endif %}
+                <!-- Now subtract returns once -->
                 {% if closing_shift.return_sales_total > 0 %}
                 <tr class="payment-row">
                     <td class="payment-type">Sales Returns</td>
