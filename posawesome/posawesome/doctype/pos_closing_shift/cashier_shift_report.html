@@ -270,6 +270,76 @@
         </div>
     </div>
 
+    <div class="divider"></div>
+
+    <!-- Payment Modes Section -->
+    <div class="section">
+        <div class="section-title">PAYMENT MODES</div>
+        <table class="payment-table">
+            <thead>
+                <tr>
+                    <th class="payment-type">Payment Type</th>
+                    <th class="payment-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in closing_shift.payment_reconciliation %}
+                <tr class="payment-row">
+                    <td class="payment-type">{{ payment.mode_of_payment[:12] }}{% if payment.mode_of_payment|length > 12 %}...{% endif %}</td>
+                    <td class="payment-amount">
+                        <!-- Payment amount (net, but returns will be added back in total_payments) -->
+                        {{ frappe.utils.fmt_money((payment.expected_amount or 0) - (payment.opening_amount or 0), currency=currency) }}
+                    </td>
+                </tr>
+                {% endfor %}
+                <!-- Add back returns as a positive line to show gross before subtracting -->
+                {% if closing_shift.return_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Returns Add-Back</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
+                {% if credit_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Credit Sale</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
+                {% if overdue_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Overdue</td>
+                    <td class="payment-amount">
+                        {{ frappe.utils.fmt_money(overdue_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
+                <!-- Now subtract returns once -->
+                {% if closing_shift.return_sales_total > 0 %}
+                <tr class="payment-row">
+                    <td class="payment-type">Sales Returns</td>
+                    <td class="payment-amount" style="color: #d32f2f;">
+                        -{{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td class="payment-type"><strong>TOTAL AMOUNT:</strong></td>
+                    <td class="payment-amount">
+                        <strong>{{ frappe.utils.fmt_money(total_amount, currency=currency) }}</strong>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="divider"></div>
+
     <!-- Cash Sales Section -->
     <div class="section">
         <div class="section-title">CASH SALES</div>
@@ -379,72 +449,6 @@
 
     <div class="divider"></div>
     {% endif %}
-
-    <!-- Payment Modes Section -->
-    <div class="section">
-        <div class="section-title">PAYMENT MODES</div>
-        <table class="payment-table">
-            <thead>
-                <tr>
-                    <th class="payment-type">Payment Type</th>
-                    <th class="payment-amount">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payment in closing_shift.payment_reconciliation %}
-                <tr class="payment-row">
-                    <td class="payment-type">{{ payment.mode_of_payment[:12] }}{% if payment.mode_of_payment|length > 12 %}...{% endif %}</td>
-                    <td class="payment-amount">
-                        <!-- Payment amount (net, but returns will be added back in total_payments) -->
-                        {{ frappe.utils.fmt_money((payment.expected_amount or 0) - (payment.opening_amount or 0), currency=currency) }}
-                    </td>
-                </tr>
-                {% endfor %}
-                <!-- Add back returns as a positive line to show gross before subtracting -->
-                {% if closing_shift.return_sales_total > 0 %}
-                <tr class="payment-row">
-                    <td class="payment-type">Returns Add-Back</td>
-                    <td class="payment-amount">
-                        {{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
-                    </td>
-                </tr>
-                {% endif %}
-                {% if credit_sales_total > 0 %}
-                <tr class="payment-row">
-                    <td class="payment-type">Credit Sale</td>
-                    <td class="payment-amount">
-                        {{ frappe.utils.fmt_money(credit_sales_total, currency=currency) }}
-                    </td>
-                </tr>
-                {% endif %}
-                {% if overdue_sales_total > 0 %}
-                <tr class="payment-row">
-                    <td class="payment-type">Overdue</td>
-                    <td class="payment-amount">
-                        {{ frappe.utils.fmt_money(overdue_sales_total, currency=currency) }}
-                    </td>
-                </tr>
-                {% endif %}
-                <!-- Now subtract returns once -->
-                {% if closing_shift.return_sales_total > 0 %}
-                <tr class="payment-row">
-                    <td class="payment-type">Sales Returns</td>
-                    <td class="payment-amount" style="color: #d32f2f;">
-                        -{{ frappe.utils.fmt_money(closing_shift.return_sales_total, currency=currency) }}
-                    </td>
-                </tr>
-                {% endif %}
-            </tbody>
-            <tfoot>
-                <tr class="total-row">
-                    <td class="payment-type"><strong>TOTAL AMOUNT:</strong></td>
-                    <td class="payment-amount">
-                        <strong>{{ frappe.utils.fmt_money(total_amount, currency=currency) }}</strong>
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
 
     <!-- Total Quantity and Shift Period -->
     <div class="section">
