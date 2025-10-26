@@ -729,7 +729,7 @@ def print_cashier_shift_report(closing_shift_name):
 	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation) + returns_total
 	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
 	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
-	net_sales = gross_sales - returns_total
+	net_sales = gross_sales
 	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total
 	
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
@@ -880,8 +880,8 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Calculate GROSS SALES (total of all sales before returns)
 	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
 	
-	# Calculate NET SALES (GROSS SALES - RETURNS) - now returns are subtracted only once
-	net_sales = gross_sales - returns_total
+	# Calculate NET SALES (same as GROSS SALES - returns not subtracted for gross profit)
+	net_sales = gross_sales
 	
 	# Calculate total amount (payments + credit sales + overdue sales - returns subtracted only once)
 	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total

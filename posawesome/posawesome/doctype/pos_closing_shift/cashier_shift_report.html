@@ -262,14 +262,6 @@
         <div class="section" style="margin-top: 15px;">
             <div class="section-title">NET SALES</div>
             <table class="summary-table">
-                <tr>
-                    <td class="summary-label">Gross Sales:</td>
-                    <td class="summary-value">{{ frappe.utils.fmt_money(gross_sales, currency=currency) }}</td>
-                </tr>
-                <tr>
-                    <td class="summary-label">Returns:</td>
-                    <td class="summary-value">{{ frappe.utils.fmt_money(returns_total, currency=currency) }}</td>
-                </tr>
                 <tr class="total-row">
                     <td class="summary-label"><strong>Net Sales:</strong></td>
                     <td class="summary-value"><strong>{{ frappe.utils.fmt_money(net_sales, currency=currency) }}</strong></td>
