@@ -680,6 +680,7 @@ def submit_printed_invoices(pos_opening_shift):
 def print_cashier_shift_report(closing_shift_name):
 	"""
 	Print the cashier shift report automatically when closing shift
+	Uses the same calculation logic as make_closing_shift_from_opening
 	"""
 	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
 	
@@ -691,49 +692,70 @@ def print_cashier_shift_report(closing_shift_name):
 	# Get items sold during the shift
 	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Get unpaid invoices (credit sales) for this shift
+	# Get unpaid invoices (credit sales) for this shift - same as make_closing_shift_from_opening
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
-	# Get overdue invoices for this shift
+	# Get overdue invoices for this shift - same as make_closing_shift_from_opening
 	overdue_invoices = get_overdue_invoices(closing_shift_doc.pos_opening_shift)
 	
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Get sales returns for this shift
+	# Get sales returns for this shift - same as make_closing_shift_from_opening
 	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Calculate all totals in Python (same logic as direct_print function)
+	# Calculate using the EXACT same logic as make_closing_shift_from_opening
+	# Use values from closing_shift_doc fields that were set by make_closing_shift_from_opening
+	returns_total = flt(closing_shift_doc.return_sales_total or 0)
+	returns_count = flt(closing_shift_doc.return_sales_count or 0)
+	
+	# Use credit_sales_total and overdue_sales_total from closing_shift_doc (set by make_closing_shift_from_opening)
+	credit_sales_total = flt(closing_shift_doc.credit_sales_total or 0)
+	overdue_sales_total = flt(closing_shift_doc.overdue_sales_total or 0)
+	unpaid_invoices_count = len(unpaid_invoices)
+	overdue_invoices_count = len(overdue_invoices)
+	
+	# Use grand_total and net_total from closing_shift_doc (set by make_closing_shift_from_opening)
+	grand_total = flt(closing_shift_doc.grand_total or 0)
+	net_total = flt(closing_shift_doc.net_total or 0)
+	
+	# Calculate cash values from payment reconciliation
 	opening_cash_balance = 0
-	returns_total = sales_returns_data.get('returns_total', 0)
-	cash_sales_total = 0
 	cash_sales_net = 0
 	cash_payment_found = False
 	cash_closing_amount = 0
 	
+	# Get Cash mode of payment from POS Profile
+	cash_mode_of_payment = frappe.get_value("POS Profile", closing_shift_doc.pos_profile, "posa_cash_mode_of_payment")
+	if not cash_mode_of_payment:
+		cash_mode_of_payment = "Cash"
+	
 	for payment in closing_shift_doc.payment_reconciliation:
-		payment_mode = payment.mode_of_payment.lower()
-		if 'cash' in payment_mode or payment.mode_of_payment == 'Cash':
+		if payment.mode_of_payment == cash_mode_of_payment or 'cash' in payment.mode_of_payment.lower():
 			opening_cash_balance = flt(payment.opening_amount or 0)
 			cash_sales_net = flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0)
-			cash_sales_total = cash_sales_net + returns_total
 			cash_payment_found = True
 			cash_closing_amount = flt(payment.closing_amount or 0)
+			break
 	
-	credit_sales_total = sum(flt(invoice.outstanding_amount) for invoice in unpaid_invoices)
-	unpaid_invoices_count = len(unpaid_invoices)
+	# Cash sales total (gross) = NET cash + returns
+	cash_sales_total = cash_sales_net + returns_total
 	
-	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
-	overdue_invoices_count = len(overdue_invoices)
+	# Calculate total payments (sum of all payment modes excluding opening amounts)
+	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) 
+	                     for payment in closing_shift_doc.payment_reconciliation)
 	
-	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation) + returns_total
-	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
-	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
-	net_sales = gross_sales
-	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total
+	# Net Sales = grand_total (which already includes returns properly from make_closing_shift_from_opening)
+	net_sales = grand_total
 	
+	# Total amount = payments + credit + overdue
+	total_amount = total_payments + credit_sales_total + overdue_sales_total
+	
+	# Pay In/Pay Out from petty cash
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
 	pay_out_amount = flt(petty_cash_data.get('pay_out_total', 0) or 0)
+	
+	# Expected cash in drawer = opening + net cash sales + pay in - pay out
 	expected_cash_in_drawer = opening_cash_balance + cash_sales_net + pay_in_amount - pay_out_amount
 	cash_over_short = cash_closing_amount - expected_cash_in_drawer if cash_payment_found else 0
 	
@@ -751,7 +773,7 @@ def print_cashier_shift_report(closing_shift_name):
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
-		# Pre-calculated values
+		# Pre-calculated values from make_closing_shift_from_opening
 		"opening_balance": opening_cash_balance,
 		"cash_sales_total": cash_sales_total,
 		"credit_sales_total": credit_sales_total,
@@ -760,8 +782,9 @@ def print_cashier_shift_report(closing_shift_name):
 		"overdue_invoices_count": overdue_invoices_count,
 		"total_payments": total_payments,
 		"grand_total": grand_total,
-		"gross_sales": gross_sales,
+		"gross_sales": net_sales,  # Same as net_sales from make_closing_shift_from_opening
 		"net_sales": net_sales,
+		"net_total": net_total,
 		"total_amount": total_amount,
 		"expected_cash_in_drawer": expected_cash_in_drawer,
 		"cash_over_short": cash_over_short,
@@ -769,9 +792,9 @@ def print_cashier_shift_report(closing_shift_name):
 		"cash_closing_amount": cash_closing_amount,
 		"pay_in_amount": pay_in_amount,
 		"pay_out_amount": pay_out_amount,
-		# Sales returns simplified variables
-		"returns_total": sales_returns_data.get('returns_total', 0),
-		"returns_count": sales_returns_data.get('returns_count', 0),
+		# Sales returns from closing_shift_doc (set by make_closing_shift_from_opening)
+		"returns_total": returns_total,
+		"returns_count": returns_count,
 		"returns_list": sales_returns_data.get('returns', [])
 	}
 	
@@ -813,6 +836,7 @@ def print_cashier_shift_report(closing_shift_name):
 def direct_print_cashier_shift_report(closing_shift_name):
 	"""
 	Direct print function that generates HTML and returns it for immediate printing
+	Uses the same calculation logic as make_closing_shift_from_opening
 	"""
 	closing_shift_doc = frappe.get_doc("POS Closing Shift", closing_shift_name)
 	
@@ -824,72 +848,73 @@ def direct_print_cashier_shift_report(closing_shift_name):
 	# Get items sold during the shift
 	items_sold = get_items_sold_during_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Get unpaid invoices (credit sales) for this shift
+	# Get unpaid invoices (credit sales) for this shift - same as make_closing_shift_from_opening
 	unpaid_invoices = get_unpaid_invoices(closing_shift_doc.pos_opening_shift)
 	
-	# Get overdue invoices for this shift
+	# Get overdue invoices for this shift - same as make_closing_shift_from_opening
 	overdue_invoices = get_overdue_invoices(closing_shift_doc.pos_opening_shift)
 	
 	# Get petty cash entries for this shift
 	petty_cash_data = get_petty_cash_entries_for_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Get sales returns for this shift
+	# Get sales returns for this shift - same as make_closing_shift_from_opening
 	sales_returns_data = get_sales_returns_for_shift(closing_shift_doc.pos_opening_shift)
 	
-	# Debug: Print return sales data
+	# Calculate using the EXACT same logic as make_closing_shift_from_opening
+	# Use values from closing_shift_doc fields that were set by make_closing_shift_from_opening
+	returns_total = flt(closing_shift_doc.return_sales_total or 0)
+	returns_count = flt(closing_shift_doc.return_sales_count or 0)
 	
-	# Calculate all totals in Python
-	# Opening balance should only include cash (not Knet or other payment methods)
+	# Use credit_sales_total and overdue_sales_total from closing_shift_doc (set by make_closing_shift_from_opening)
+	credit_sales_total = flt(closing_shift_doc.credit_sales_total or 0)
+	overdue_sales_total = flt(closing_shift_doc.overdue_sales_total or 0)
+	unpaid_invoices_count = len(unpaid_invoices)
+	overdue_invoices_count = len(overdue_invoices)
+	
+	# Use grand_total and net_total from closing_shift_doc (set by make_closing_shift_from_opening)
+	grand_total = flt(closing_shift_doc.grand_total or 0)
+	net_total = flt(closing_shift_doc.net_total or 0)
+	
+	# Calculate cash values from payment reconciliation
 	opening_cash_balance = 0
-	
-	# Get returns total to add back to gross calculations
-	returns_total = sales_returns_data.get('returns_total', 0)
-	
-	# Calculate cash sales (look for various cash-related payment modes)
-	cash_sales_total = 0  # This will be GROSS (before returns)
-	cash_sales_net = 0    # This will be NET (after returns) - used for cash drawer calculation
+	cash_sales_net = 0
 	cash_payment_found = False
 	cash_closing_amount = 0
 	
+	# Get Cash mode of payment from POS Profile
+	cash_mode_of_payment = frappe.get_value("POS Profile", closing_shift_doc.pos_profile, "posa_cash_mode_of_payment")
+	if not cash_mode_of_payment:
+		cash_mode_of_payment = "Cash"
+	
 	for payment in closing_shift_doc.payment_reconciliation:
-		payment_mode = payment.mode_of_payment.lower()
-		if 'cash' in payment_mode or payment.mode_of_payment == 'Cash':
-			# Opening amount is the initial cash in drawer
+		if payment.mode_of_payment == cash_mode_of_payment or 'cash' in payment.mode_of_payment.lower():
 			opening_cash_balance = flt(payment.opening_amount or 0)
-			# Cash sales NET (actual cash collected, returns already subtracted by system)
 			cash_sales_net = flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0)
-			# Cash sales GROSS (add back returns to show total sales before returns)
-			cash_sales_total = cash_sales_net + returns_total
 			cash_payment_found = True
 			cash_closing_amount = flt(payment.closing_amount or 0)
+			break
 	
-	# Calculate credit sales from unpaid invoices
-	credit_sales_total = sum(flt(invoice.outstanding_amount) for invoice in unpaid_invoices)
-	unpaid_invoices_count = len(unpaid_invoices)
+	# Cash sales total (gross) = NET cash + returns
+	cash_sales_total = cash_sales_net + returns_total
 	
-	# Calculate overdue sales from overdue invoices
-	overdue_sales_total = sum(flt(invoice.outstanding_amount) for invoice in overdue_invoices)
-	overdue_invoices_count = len(overdue_invoices)
+	# Calculate total payments (sum of all payment modes excluding opening amounts)
+	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) 
+	                     for payment in closing_shift_doc.payment_reconciliation)
 	
-	# Calculate total payments GROSS (add back returns since expected_amount already has returns subtracted)
-	total_payments = sum(flt(payment.expected_amount or 0) - flt(payment.opening_amount or 0) for payment in closing_shift_doc.payment_reconciliation) + returns_total
+	# Net Sales = grand_total (which already includes returns properly from make_closing_shift_from_opening)
+	net_sales = grand_total
 	
-	# Calculate grand total
-	grand_total = cash_sales_total + credit_sales_total + overdue_sales_total
+	# Gross Sales = Net Sales (in this context they are the same from make_closing_shift_from_opening)
+	gross_sales = grand_total
 	
-	# Calculate GROSS SALES (total of all sales before returns)
-	gross_sales = cash_sales_total + credit_sales_total + overdue_sales_total
+	# Total amount = payments + credit + overdue
+	total_amount = total_payments + credit_sales_total + overdue_sales_total
 	
-	# Calculate NET SALES (same as GROSS SALES - returns not subtracted for gross profit)
-	net_sales = gross_sales
-	
-	# Calculate total amount (payments + credit sales + overdue sales - returns subtracted only once)
-	total_amount = total_payments + credit_sales_total + overdue_sales_total - returns_total
-	
-	# Calculate expected cash in drawer (opening cash + NET cash sales + pay in - pay out)
-	# Use cash_sales_net because returns were already refunded, so we use actual cash collected
+	# Pay In/Pay Out from petty cash
 	pay_in_amount = flt(petty_cash_data.get('pay_in_total', 0) or 0)
 	pay_out_amount = flt(petty_cash_data.get('pay_out_total', 0) or 0)
+	
+	# Expected cash in drawer = opening + net cash sales + pay in - pay out
 	expected_cash_in_drawer = opening_cash_balance + cash_sales_net + pay_in_amount - pay_out_amount
 	
 	# Calculate cash over/short
@@ -909,7 +934,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"currency": company.default_currency,
 		"report_date": frappe.utils.nowdate(),
 		"report_time": frappe.utils.nowtime(),
-		# Pre-calculated values
+		# Pre-calculated values from make_closing_shift_from_opening
 		"opening_balance": opening_cash_balance,
 		"cash_sales_total": cash_sales_total,
 		"credit_sales_total": credit_sales_total,
@@ -920,6 +945,7 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"grand_total": grand_total,
 		"gross_sales": gross_sales,
 		"net_sales": net_sales,
+		"net_total": net_total,
 		"total_amount": total_amount,
 		"expected_cash_in_drawer": expected_cash_in_drawer,
 		"cash_over_short": cash_over_short,
@@ -927,10 +953,9 @@ def direct_print_cashier_shift_report(closing_shift_name):
 		"cash_closing_amount": cash_closing_amount,
 		"pay_in_amount": pay_in_amount,
 		"pay_out_amount": pay_out_amount,
-		"petty_cash_data": petty_cash_data,
-		# Sales returns calculated values
-		"returns_total": sales_returns_data.get('returns_total', 0),
-		"returns_count": sales_returns_data.get('returns_count', 0),
+		# Sales returns from closing_shift_doc (set by make_closing_shift_from_opening)
+		"returns_total": returns_total,
+		"returns_count": returns_count,
 		"returns_list": sales_returns_data.get('returns', [])
 	}
 	
