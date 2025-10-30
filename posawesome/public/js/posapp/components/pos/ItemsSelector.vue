@@ -1141,39 +1141,41 @@ export default {
 				vm.search_from_scanner = false;
 			}
 		}, 300),
-		get_item_qty(first_search) {
-			const qtyVal = this.qty != null ? this.qty : 1;
-			let scal_qty = Math.abs(qtyVal);
-			if (first_search.startsWith(this.pos_profile.posa_scale_barcode_start)) {
-				let pesokg1 = first_search.substr(7, 5);
-				let pesokg;
-				if (pesokg1.startsWith("0000")) {
-					pesokg = "0.00" + pesokg1.substr(4);
-				} else if (pesokg1.startsWith("000")) {
-					pesokg = "0.0" + pesokg1.substr(3);
-				} else if (pesokg1.startsWith("00")) {
-					pesokg = "0." + pesokg1.substr(2);
-				} else if (pesokg1.startsWith("0")) {
-					pesokg = pesokg1.substr(1, 1) + "." + pesokg1.substr(2, pesokg1.length);
-				} else if (!pesokg1.startsWith("0")) {
-					pesokg = pesokg1.substr(0, 2) + "." + pesokg1.substr(2, pesokg1.length);
-				}
-				scal_qty = pesokg;
+	get_item_qty(first_search) {
+		const qtyVal = this.qty != null ? this.qty : 1;
+		let scal_qty = Math.abs(qtyVal);
+		// Only apply scale barcode logic when first 2 codes are "21"
+		if (first_search.startsWith(this.pos_profile.posa_scale_barcode_start) && first_search.substr(0, 2) === "21") {
+			let pesokg1 = first_search.substr(7, 5);
+			let pesokg;
+			if (pesokg1.startsWith("0000")) {
+				pesokg = "0.00" + pesokg1.substr(4);
+			} else if (pesokg1.startsWith("000")) {
+				pesokg = "0.0" + pesokg1.substr(3);
+			} else if (pesokg1.startsWith("00")) {
+				pesokg = "0." + pesokg1.substr(2);
+			} else if (pesokg1.startsWith("0")) {
+				pesokg = pesokg1.substr(1, 1) + "." + pesokg1.substr(2, pesokg1.length);
+			} else if (!pesokg1.startsWith("0")) {
+				pesokg = pesokg1.substr(0, 2) + "." + pesokg1.substr(2, pesokg1.length);
 			}
-			if (this.hide_qty_decimals) {
-				scal_qty = Math.trunc(scal_qty);
-			}
-			return scal_qty;
-		},
-		get_search(first_search) {
-			let search_term = "";
-			if (first_search && first_search.startsWith(this.pos_profile.posa_scale_barcode_start)) {
-				search_term = first_search.substr(0, 7);
-			} else {
-				search_term = first_search;
-			}
-			return search_term;
-		},
+			scal_qty = pesokg;
+		}
+		if (this.hide_qty_decimals) {
+			scal_qty = Math.trunc(scal_qty);
+		}
+		return scal_qty;
+	},
+	get_search(first_search) {
+		let search_term = "";
+		// Only apply scale barcode logic when first 2 codes are "21"
+		if (first_search && first_search.startsWith(this.pos_profile.posa_scale_barcode_start) && first_search.substr(0, 2) === "21") {
+			search_term = first_search.substr(0, 7);
+		} else {
+			search_term = first_search;
+		}
+		return search_term;
+	},
 		esc_event() {
 			this.search = null;
 			this.first_search = null;
@@ -1551,21 +1553,23 @@ export default {
 				this.processScannedItem(scannedCode);
 			}, 300);
 		},
-		// Parse scale barcode: DDIIIIIWWWWC or DDIIIIIPPPPC
-		parseScaleBarcode(barcode) {
-			// Must be at least 12 chars (DDIIIIIWWWWC)
-			if (!barcode || barcode.length < 12) return null;
-			const dept = barcode.substr(0, 2);
-			const itemCode = barcode.substr(2, 5);
-			const value = barcode.substr(7, 5); // 5 digits for weight/price
-			const typeChar = barcode.substr(11, 1); // C
-			return {
-				department: dept,
-				item_code: itemCode,
-				value: value,
-				typeChar: typeChar,
-			};
-		},
+	// Parse scale barcode: DDIIIIIWWWWC or DDIIIIIPPPPC
+	parseScaleBarcode(barcode) {
+		// Must be at least 12 chars (DDIIIIIWWWWC)
+		if (!barcode || barcode.length < 12) return null;
+		const dept = barcode.substr(0, 2);
+		// Only apply scale barcode logic when first 2 codes are "21"
+		if (dept !== "21") return null;
+		const itemCode = barcode.substr(2, 5);
+		const value = barcode.substr(7, 5); // 5 digits for weight/price
+		const typeChar = barcode.substr(11, 1); // C
+		return {
+			department: dept,
+			item_code: itemCode,
+			value: value,
+			typeChar: typeChar,
+		};
+	},
 
 		async processScannedItem(scannedCode) {
 			const scaleData = this.parseScaleBarcode(scannedCode);
