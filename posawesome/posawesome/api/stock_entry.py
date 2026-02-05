@@ -94,15 +94,15 @@ def create_stock_entry(stock_entry_data):
 		# Insert the document
 		stock_entry.insert(ignore_permissions=False)
 		
-		# Optionally submit the document
-		# stock_entry.submit()
+		# Submit the document
+		stock_entry.submit()
 		
 		frappe.db.commit()
 		
 		return {
 			"name": stock_entry.name,
 			"status": "success",
-			"message": _("Stock Entry {0} created successfully").format(stock_entry.name)
+			"message": _("Stock Entry {0} submitted successfully").format(stock_entry.name)
 		}
 	
 	except Exception as e:
