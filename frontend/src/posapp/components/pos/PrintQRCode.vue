@@ -215,7 +215,7 @@ export default {
 				"#qrcode { margin: 20px 0; }" +
 				"#qrcode canvas { max-width: 250mm !important; max-height: 250mm !important; width: 250mm !important; height: 250mm !important; }" +
 				".item-info { text-align: center; margin-top: 20px; }" +
-				".item-code { font-size: 48px; font-weight: bold; margin: 10px 0; }" +
+				".item-code { font-size: 64px; font-weight: bold; margin: 10px 0; }" +
 				"@media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }" +
 				"</style></head><body>" +
 				'<div class="qr-container">' +
