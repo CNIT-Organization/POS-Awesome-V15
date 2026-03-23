@@ -11,6 +11,7 @@
   "uom",
   "company",
   "is_active",
+  "update_stock",
   "components_section",
   "components"
  ],
@@ -43,6 +44,13 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Is Active"
+  },
+  {
+   "default": "0",
+   "fieldname": "update_stock",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Update Stock"
   },
   {
    "fieldname": "components_section",

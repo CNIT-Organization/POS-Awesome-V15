@@ -1,7 +1,7 @@
 import json
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import cint, getdate
 
 
 def _get_recipe_row_dict(row):
@@ -81,8 +81,11 @@ def get_recipe_components(pairs):
 		components = []
 		if name:
 			doc = frappe.get_doc("POS Recipe", name)
+			recipe_update_stock = cint(getattr(doc, "update_stock", 0))
 			for row in doc.components:
-				components.append(_get_recipe_row_dict(row))
+				row_data = _get_recipe_row_dict(row)
+				row_data["recipe_update_stock"] = recipe_update_stock
+				components.append(row_data)
 		result[f"{item_code}|{uom}"] = components
 	return result
 

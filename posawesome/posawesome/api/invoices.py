@@ -179,7 +179,6 @@ def _build_recipe_consumption_rows(invoice_doc):
         components = mapping.get(key) or []
         if not components:
             continue
-
         warehouse = it.warehouse or invoice_doc.get("set_warehouse")
         for comp in components:
             component_code = comp.get("item_code")
@@ -732,6 +731,12 @@ def submit_invoice(invoice, data):
                 components = mapping.get(key) or []
                 if not components:
                     continue
+                recipe_update_stock = cint((components[0] or {}).get("recipe_update_stock"))
+                if not recipe_update_stock:
+                    invoice_doc.update_stock = 0
+                    # Parent item should not consume stock; only recipe components do.
+                    it.is_stock_item = 0
+                    it.stock_qty = 0
                 # avoid duplication if already treated as product bundle
                 if getattr(it, "is_bundle", 0):
                     continue
