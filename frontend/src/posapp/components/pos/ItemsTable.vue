@@ -37,6 +37,9 @@
 					<v-chip v-if="item.is_bundle" color="secondary" size="x-small" class="ml-1">
 						{{ __("Bundle") }}
 					</v-chip>
+					<v-chip v-if="item.has_recipe" color="info" size="x-small" class="ml-1">
+						{{ __("Recipe") }}
+					</v-chip>
 					<v-chip v-if="item.name_overridden" color="primary" size="x-small" class="ml-1">
 						{{ __("Edited") }}
 					</v-chip>
@@ -483,6 +486,37 @@
 										></v-checkbox>
 									</div>
 								</div>
+							</div>
+
+							<!-- Recipe Section -->
+							<div class="form-section" v-if="item.has_recipe && item.recipe_components_preview?.length">
+								<div class="section-header">
+									<v-icon size="small" class="section-icon">mdi-chef-hat</v-icon>
+									<span class="section-title">{{ __("Recipe Components") }}</span>
+								</div>
+								<div class="text-caption mb-2">
+									{{ __("These components will be consumed when invoice is submitted.") }}
+								</div>
+								<v-table density="compact">
+									<thead>
+										<tr>
+											<th>{{ __("Item") }}</th>
+											<th class="text-right">{{ __("Qty / unit") }}</th>
+											<th class="text-right">{{ __("Qty for line") }}</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr v-for="(comp, idx) in item.recipe_components_preview" :key="idx">
+											<td>{{ comp.item_name || comp.item_code }}</td>
+											<td class="text-right">
+												{{ formatFloat(comp.qty) }} {{ comp.uom || "" }}
+											</td>
+											<td class="text-right">
+												{{ formatFloat((item.qty || 0) * (comp.qty || 0)) }} {{ comp.uom || "" }}
+											</td>
+										</tr>
+									</tbody>
+								</v-table>
 							</div>
 
 							<!-- Serial Number Section -->

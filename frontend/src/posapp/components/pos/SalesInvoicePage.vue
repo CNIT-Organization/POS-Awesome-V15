@@ -31,6 +31,16 @@
 						<v-icon start size="small">mdi-printer</v-icon>
 						{{ __("Print") }}
 					</v-btn>
+					<v-btn
+						size="small"
+						color="secondary"
+						variant="text"
+						class="ml-2"
+						@click="openDetails(item.raw.name)"
+					>
+						<v-icon start size="small">mdi-file-document-outline</v-icon>
+						{{ __("Details") }}
+					</v-btn>
 				</template>
 			</v-data-table>
 
@@ -149,6 +159,10 @@ export default {
 				"&trigger_print=1";
 			window.open(url, "Print");
 		};
+		const openDetails = (name) => {
+			const url = `${frappe.urllib.get_base_url()}/app/sales-invoice/${encodeURIComponent(name)}`;
+			window.open(url, "_blank");
+		};
 
 		const debouncedReload = _.debounce(() => load(true), 250);
 		watch(search, () => debouncedReload());
@@ -159,7 +173,7 @@ export default {
 			load(true);
 		});
 
-		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, printInvoice };
+		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, printInvoice, openDetails };
 	},
 };
 </script>

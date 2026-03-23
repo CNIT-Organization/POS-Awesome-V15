@@ -6,6 +6,37 @@ import { withPerf } from "../utils/perf.js";
 /* global frappe, __ */
 
 export function useItemAddition() {
+	const recipeCache = new Map();
+
+	const loadRecipeForItem = async (item, context) => {
+		if (!item?.item_code || !item?.uom) return;
+		const key = `${item.item_code}|${item.uom}|${context?.pos_profile?.company || ""}`;
+		if (!recipeCache.has(key)) {
+			try {
+				const r = await frappe.call({
+					method: "posawesome.posawesome.api.recipes.get_recipe_components",
+					args: {
+						pairs: [
+							{
+								item_code: item.item_code,
+								uom: item.uom,
+								company: context?.pos_profile?.company || null,
+							},
+						],
+					},
+				});
+				const mapping = r?.message || {};
+				recipeCache.set(key, mapping[`${item.item_code}|${item.uom}`] || []);
+			} catch (e) {
+				console.error("Failed to fetch recipe components", e);
+				recipeCache.set(key, []);
+			}
+		}
+		const components = recipeCache.get(key) || [];
+		item.has_recipe = components.length ? 1 : 0;
+		item.recipe_components_preview = components;
+	};
+
 	const runAsyncTask = (task, contextLabel) => {
 		Promise.resolve().then(() => {
 			try {
@@ -220,6 +251,7 @@ export function useItemAddition() {
 			if (index === -1 || context.new_line) {
 				context.items.unshift(new_item);
 				runAsyncTask(() => expandBundle(new_item, context), "expand_bundle");
+				runAsyncTask(() => loadRecipeForItem(new_item, context), "load_recipe_preview");
 				// Skip recalculation to preserve the manually set rate
 				if (context.update_item_detail) {
 					scheduleItemTask(
@@ -292,6 +324,9 @@ export function useItemAddition() {
 				}
 			} else {
 				const cur_item = context.items[index];
+				if (cur_item.has_recipe === undefined) {
+					runAsyncTask(() => loadRecipeForItem(cur_item, context), "load_recipe_preview:existing");
+				}
 				const previousQty = cur_item.qty;
 				if (context.update_items_details) {
 					runAsyncTask(
@@ -349,6 +384,9 @@ export function useItemAddition() {
 			}
 		} else {
 			const cur_item = context.items[index];
+			if (cur_item.has_recipe === undefined) {
+				runAsyncTask(() => loadRecipeForItem(cur_item, context), "load_recipe_preview:existing");
+			}
 			const previousQty = cur_item.qty;
 			if (context.update_items_details) {
 				runAsyncTask(() => context.update_items_details([cur_item]), "update_items_details:existing");
@@ -502,6 +540,8 @@ export function useItemAddition() {
 		new_item.bundle_id = null;
 		new_item.posa_notes = "";
 		new_item.posa_delivery_date = "";
+		new_item.has_recipe = 0;
+		new_item.recipe_components_preview = [];
 		new_item.posa_row_id = context.makeid ? context.makeid(20) : Math.random().toString(36).substr(2, 20);
 		if (new_item.has_serial_no && !new_item.serial_no_selected) {
 			new_item.serial_no_selected = [];

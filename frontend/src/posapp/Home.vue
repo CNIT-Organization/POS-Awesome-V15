@@ -53,6 +53,7 @@ import ReportsPage from "./components/reports/ReportsPage.vue";
 import Print from "./components/pos/PrintQRCode.vue";
 import StockEntry from "./components/stock/MiniStockEntry.vue";
 import Item from "./components/item/MiniItem.vue";
+import RecipesPage from "./components/recipes/RecipesPage.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
 import { useLoading } from "./composables/useLoading.js";
@@ -171,6 +172,7 @@ export default {
 		Print,
 		"Stock Entry": StockEntry,
 		Item,
+		Recipes: RecipesPage,
 		AppLoadingOverlay,
 		UpdatePrompt,
 	},
@@ -212,6 +214,11 @@ export default {
 		checkExternalConnectivity,
 		checkWebSocketConnectivity,
 		setPage(page) {
+			// Shortcut entry points to existing reports UI.
+			if (page === "Recipe Usage") {
+				this.page = "Reports";
+				return;
+			}
 			this.page = page;
 		},
 

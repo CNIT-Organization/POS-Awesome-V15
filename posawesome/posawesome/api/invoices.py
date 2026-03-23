@@ -31,6 +31,7 @@ from posawesome.posawesome.api.utilities import (
     ensure_child_doctype,
     set_batch_nos_for_bundels,
 )  # Updated imports
+from posawesome.posawesome.api.recipes import get_recipe_components  # recipe lookups
 
 from .items import get_stock_availability
 
@@ -601,6 +602,55 @@ def submit_invoice(invoice, data):
     payments = invoice_doc.payments
 
     _auto_set_return_batches(invoice_doc)
+
+    # Expand POS Recipe components into packed_items so stock is reduced on submit
+    try:
+        def _ensure_packed_child(parent, parent_item_code, component, multiplier, warehouse):
+            child = {
+                "parent_item": parent_item_code,
+                "item_code": component.get("item_code"),
+                "item_name": component.get("item_name") or component.get("item_code"),
+                "qty": (multiplier or 1) * float(component.get("qty") or 0),
+                "uom": component.get("uom"),
+                "warehouse": warehouse,
+                "is_stock_item": int(component.get("is_stock_item") or 0),
+                "has_batch_no": int(component.get("is_batch") or 0),
+                "has_serial_no": int(component.get("is_serial") or 0),
+            }
+            parent.append("packed_items", child)
+
+        # Build request pairs
+        pairs = []
+        for it in invoice_doc.items:
+            if not getattr(it, "item_code", None):
+                continue
+            pairs.append(
+                {
+                    "item_code": it.item_code,
+                    "uom": it.uom or it.stock_uom,
+                    "company": invoice_doc.company,
+                }
+            )
+        if pairs:
+            mapping = get_recipe_components(frappe.as_json(pairs)) or {}
+            for it in invoice_doc.items:
+                key = f"{it.item_code}|{(it.uom or it.stock_uom)}"
+                components = mapping.get(key) or []
+                if not components:
+                    continue
+                # avoid duplication if already treated as product bundle
+                if getattr(it, "is_bundle", 0):
+                    continue
+                for comp in components:
+                    _ensure_packed_child(
+                        invoice_doc,
+                        it.item_code,
+                        comp,
+                        float(it.qty or 1),
+                        it.warehouse or invoice_doc.get("set_warehouse"),
+                    )
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "POSAwesome: expand POS Recipe components")
 
     # if frappe.get_value("POS Profile", invoice_doc.pos_profile, "posa_auto_set_batch"):
     #     set_batch_nos(invoice_doc, "warehouse", throw=True)
