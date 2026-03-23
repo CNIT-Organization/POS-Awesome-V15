@@ -8,14 +8,14 @@ import {
 	getOfflineCustomers,
 	getTaxTemplate,
 	getTaxInclusiveSetting,
-} from "../../../offline/index.js";
+} from "../../../../offline/index.js";
 
 // Import composables
-import { useBatchSerial } from "../../composables/useBatchSerial.js";
-import { useDiscounts } from "../../composables/useDiscounts.js";
-import { useItemAddition } from "../../composables/useItemAddition.js";
-import { useStockUtils } from "../../composables/useStockUtils.js";
-import stockCoordinator from "../../utils/stockCoordinator.js";
+import { useBatchSerial } from "../../../composables/useBatchSerial.js";
+import { useDiscounts } from "../../../composables/useDiscounts.js";
+import { useItemAddition } from "../../../composables/useItemAddition.js";
+import { useStockUtils } from "../../../composables/useStockUtils.js";
+import stockCoordinator from "../../../utils/stockCoordinator.js";
 
 const ITEM_DETAIL_CACHE_TTL = 5000;
 const STOCK_CACHE_TTL = 5000;

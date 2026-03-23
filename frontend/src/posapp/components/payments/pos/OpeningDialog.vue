@@ -133,14 +133,14 @@
 </template>
 
 <script>
-import format from "../../format";
+import format from "../../../format";
 import {
 	getOpeningDialogStorage,
 	setOpeningDialogStorage,
 	setOpeningStorage,
 	initPromise,
 	checkDbHealth,
-} from "../../../offline/index.js";
+} from "../../../../offline/index.js";
 
 export default {
 	mixins: [format],

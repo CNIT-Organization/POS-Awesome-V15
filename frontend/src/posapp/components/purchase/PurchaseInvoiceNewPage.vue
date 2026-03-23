@@ -4,7 +4,7 @@
 </template>
 
 <script>
-import POS from "../pos/Pos.vue";
+import POS from "../payments/pos/Pos.vue";
 
 export default {
 	name: "PurchaseInvoiceNewPage",

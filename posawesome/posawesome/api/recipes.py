@@ -32,6 +32,43 @@ def get_recipe_components(pairs):
 	if isinstance(pairs, str):
 		pairs = json.loads(pairs)
 
+	def _find_recipe_name(item_code, uom, company):
+		"""Best-effort recipe lookup with practical fallbacks."""
+		item_stock_uom = frappe.db.get_value("Item", item_code, "stock_uom")
+		candidate_uoms = []
+		for candidate in (uom, item_stock_uom):
+			if candidate and candidate not in candidate_uoms:
+				candidate_uoms.append(candidate)
+
+		for candidate_uom in candidate_uoms:
+			if company:
+				name = frappe.db.get_value(
+					"POS Recipe",
+					{"item": item_code, "uom": candidate_uom, "company": company, "is_active": 1},
+					"name",
+				)
+				if name:
+					return name
+
+			# Allow global (no-company) recipes as fallback.
+			name = frappe.db.sql(
+				"""
+				select name
+				from `tabPOS Recipe`
+				where item=%s
+				  and uom=%s
+				  and is_active=1
+				  and ifnull(company, '')=''
+				limit 1
+				""",
+				(item_code, candidate_uom),
+			)
+			name = name[0][0] if name else None
+			if name:
+				return name
+
+		return None
+
 	result = {}
 	for p in pairs or []:
 		item_code = p.get("item_code")
@@ -40,10 +77,7 @@ def get_recipe_components(pairs):
 		if not item_code or not uom:
 			result[(item_code or "") + "|" + (uom or "")] = []
 			continue
-		filters = {"item": item_code, "uom": uom, "is_active": 1}
-		if company:
-			filters["company"] = company
-		name = frappe.db.get_value("POS Recipe", filters, "name")
+		name = _find_recipe_name(item_code, uom, company)
 		components = []
 		if name:
 			doc = frappe.get_doc("POS Recipe", name)

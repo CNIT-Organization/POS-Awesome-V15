@@ -693,9 +693,9 @@
 /* global process */
 import _ from "lodash";
 import QRCode from "qrcode";
-import { logComponentRender } from "../../utils/perf.js";
-import { parseBooleanSetting } from "../../utils/stock.js";
-import { useInvoiceStore } from "../../stores/invoiceStore.js";
+import { logComponentRender } from "../../../utils/perf.js";
+import { parseBooleanSetting } from "../../../utils/stock.js";
+import { useInvoiceStore } from "../../../stores/invoiceStore.js";
 export default {
 	name: "ItemsTable",
 	setup() {

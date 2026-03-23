@@ -182,7 +182,7 @@
 
 <script>
 import { useRtl } from "../../composables/useRtl.js";
-import posLogo from "../pos/pos.png";
+import posLogo from "../payments/pos/pos.png";
 
 export default {
 	name: "NavbarAppBar",

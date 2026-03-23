@@ -41,16 +41,16 @@
 <script>
 /* global frappe, $ */
 import Navbar from "./components/Navbar.vue";
-import POS from "./components/pos/Pos.vue";
+import POS from "./components/payments/pos/Pos.vue";
 import Payments from "./components/payments/Pay.vue";
-import SalesReturn from "./components/pos/SalesReturnPage.vue";
-import SalesInvoicePage from "./components/pos/SalesInvoicePage.vue";
+import SalesReturn from "./components/payments/pos/SalesReturnPage.vue";
+import SalesInvoicePage from "./components/payments/pos/SalesInvoicePage.vue";
 import PurchaseInvoicePage from "./components/purchase/PurchaseInvoicePage.vue";
 import PurchaseInvoiceNewPage from "./components/purchase/PurchaseInvoiceNewPage.vue";
 import CustomersPage from "./components/customers/CustomersPage.vue";
 import SuppliersPage from "./components/suppliers/SuppliersPage.vue";
 import ReportsPage from "./components/reports/ReportsPage.vue";
-import Print from "./components/pos/PrintQRCode.vue";
+import Print from "./components/payments/pos/PrintQRCode.vue";
 import StockEntry from "./components/stock/MiniStockEntry.vue";
 import Item from "./components/item/MiniItem.vue";
 import RecipesPage from "./components/recipes/RecipesPage.vue";

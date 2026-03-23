@@ -209,8 +209,8 @@
 </template>
 
 <script>
-import { isOffline, saveOfflineCustomer } from "../../../offline/index.js";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import { isOffline, saveOfflineCustomer } from "../../../../offline/index.js";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 
 export default {
 	data: () => ({

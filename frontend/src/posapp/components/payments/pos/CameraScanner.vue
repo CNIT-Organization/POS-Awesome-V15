@@ -240,7 +240,7 @@
 <script>
 /* global frappe */
 import { QrcodeStream } from "vue-qrcode-reader";
-import opencvProcessor from "../../utils/opencvProcessor.js";
+import opencvProcessor from "../../../utils/opencvProcessor.js";
 
 export default {
 	name: "CameraScanner",

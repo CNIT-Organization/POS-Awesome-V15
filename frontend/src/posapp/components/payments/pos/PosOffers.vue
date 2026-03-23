@@ -90,8 +90,8 @@
 
 <script>
 /* global __, frappe */
-import format from "../../format";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import format from "../../../format";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 export default {
 	mixins: [format],

@@ -234,7 +234,7 @@
 
 <script>
 /* global __, frappe */
-import format, { formatUtils } from "../../format";
+import format, { formatUtils } from "../../../format";
 
 export default {
 	mixins: [format],

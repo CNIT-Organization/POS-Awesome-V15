@@ -749,8 +749,8 @@
 <script>
 /* global frappe, __, get_currency_symbol */
 // Importing format mixin for currency and utility functions
-import format, { formatUtils } from "../../format";
-import { parseBooleanSetting } from "../../utils/stock.js";
+import format, { formatUtils } from "../../../format";
+import { parseBooleanSetting } from "../../../utils/stock.js";
 import {
 	saveOfflineInvoice,
 	syncOfflineInvoices,
@@ -759,14 +759,14 @@ import {
 	getSalesPersonsStorage,
 	setSalesPersonsStorage,
 	updateLocalStock,
-} from "../../../offline/index.js";
+} from "../../../../offline/index.js";
 
-import renderOfflineInvoiceHTML from "../../../offline_print_template";
-import { silentPrint, watchPrintWindow } from "../../plugins/print.js";
-import { useInvoiceStore } from "../../stores/invoiceStore.js";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import renderOfflineInvoiceHTML from "../../../../offline_print_template.js";
+import { silentPrint, watchPrintWindow } from "../../../plugins/print.js";
+import { useInvoiceStore } from "../../../stores/invoiceStore.js";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
-import stockCoordinator from "../../utils/stockCoordinator.js";
+import stockCoordinator from "../../../utils/stockCoordinator.js";
 
 export default {
 	// Using format mixin for shared formatting methods

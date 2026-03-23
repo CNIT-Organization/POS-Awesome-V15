@@ -62,7 +62,7 @@
 <script>
 /* global frappe, __ */
 import { computed, onMounted, ref, watch } from "vue";
-import { getOpeningStorage } from "../../../offline/index.js";
+import { getOpeningStorage } from "../../../../offline/index.js";
 import _ from "lodash";
 
 export default {

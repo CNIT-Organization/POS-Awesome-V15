@@ -63,7 +63,7 @@ import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } 
 import { storeToRefs } from "pinia";
 import _ from "lodash";
 import { getOpeningStorage } from "../../../offline/index.js";
-import UpdateCustomer from "../pos/UpdateCustomer.vue";
+import UpdateCustomer from "../payments/pos/UpdateCustomer.vue";
 import { useCustomersStore } from "../../stores/customersStore.js";
 
 export default {

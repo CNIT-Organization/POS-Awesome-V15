@@ -155,6 +155,100 @@ def _validate_stock_on_invoice(invoice_doc):
         frappe.throw(frappe.as_json({"errors": errors}), frappe.ValidationError)
 
 
+def _build_recipe_consumption_rows(invoice_doc):
+    """Return aggregated recipe component rows for stock consumption fallback."""
+    pairs = []
+    for it in invoice_doc.items:
+        if not getattr(it, "item_code", None):
+            continue
+        pairs.append(
+            {
+                "item_code": it.item_code,
+                "uom": it.uom or it.stock_uom,
+                "company": invoice_doc.company,
+            }
+        )
+
+    if not pairs:
+        return []
+
+    mapping = get_recipe_components(frappe.as_json(pairs)) or {}
+    aggregated = {}
+    for it in invoice_doc.items:
+        key = f"{it.item_code}|{(it.uom or it.stock_uom)}"
+        components = mapping.get(key) or []
+        if not components:
+            continue
+
+        warehouse = it.warehouse or invoice_doc.get("set_warehouse")
+        for comp in components:
+            component_code = comp.get("item_code")
+            if not component_code:
+                continue
+            qty = flt(it.qty) * flt(comp.get("qty"))
+            if qty <= 0:
+                continue
+
+            agg_key = (component_code, warehouse, comp.get("uom"))
+            aggregated.setdefault(
+                agg_key,
+                {
+                    "item_code": component_code,
+                    "qty": 0,
+                    "uom": comp.get("uom"),
+                    "s_warehouse": warehouse,
+                },
+            )
+            aggregated[agg_key]["qty"] += qty
+
+    return [row for row in aggregated.values() if flt(row.get("qty")) > 0]
+
+
+def _create_recipe_consumption_stock_entry(invoice_doc):
+    """Create one Material Issue stock entry for recipe components if needed."""
+    components = _build_recipe_consumption_rows(invoice_doc)
+    if not components:
+        return
+
+    marker = f"Recipe consumption for {invoice_doc.doctype} {invoice_doc.name}"
+    existing = frappe.db.exists(
+        "Stock Entry",
+        {
+            "docstatus": ("!=", 2),
+            "remarks": ("like", f"%{marker}%"),
+        },
+    )
+    if existing:
+        return
+
+    se = frappe.new_doc("Stock Entry")
+    se.stock_entry_type = "Material Issue"
+    se.purpose = "Material Issue"
+    se.company = invoice_doc.company
+    se.posting_date = invoice_doc.posting_date or nowdate()
+    se.set_posting_time = 0
+    se.remarks = marker
+
+    for comp in components:
+        if not comp.get("s_warehouse"):
+            frappe.throw(
+                _("Warehouse is required to consume recipe component {0}").format(comp.get("item_code"))
+            )
+        se.append(
+            "items",
+            {
+                "item_code": comp.get("item_code"),
+                "qty": flt(comp.get("qty")),
+                "uom": comp.get("uom"),
+                "s_warehouse": comp.get("s_warehouse"),
+            },
+        )
+
+    se.flags.ignore_permissions = True
+    se.insert()
+    se.submit()
+
+
 def _auto_set_return_batches(invoice_doc):
     """Assign batch numbers for return invoices without a source invoice.
 
@@ -704,6 +798,7 @@ def submit_invoice(invoice, data):
             )
     else:
         invoice_doc.submit()
+        _create_recipe_consumption_stock_entry(invoice_doc)
         redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
 
     return {"name": invoice_doc.name, "status": invoice_doc.docstatus}
@@ -735,6 +830,7 @@ def submit_in_background_job(kwargs):
     invoice_doc.save()
 
     invoice_doc.submit()
+    _create_recipe_consumption_stock_entry(invoice_doc)
     redeeming_customer_credit(invoice_doc, data, is_payment_entry, total_cash, cash_account, payments)
 
 

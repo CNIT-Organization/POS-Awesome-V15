@@ -82,7 +82,7 @@
 
 <script>
 /* global __, frappe */
-import format from "../../format";
+import format from "../../../format";
 export default {
 	// props: ["draftsDialog"],
 	mixins: [format],

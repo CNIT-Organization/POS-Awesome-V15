@@ -62,15 +62,15 @@ import {
 	initPromise,
 	checkDbHealth,
 	setTaxTemplate,
-} from "../../../offline/index.js";
+} from "../../../../offline/index.js";
 import { getCurrentInstance } from "vue";
-import { usePosShift } from "../../composables/usePosShift.js";
-import { useOffers } from "../../composables/useOffers.js";
+import { usePosShift } from "../../../composables/usePosShift.js";
+import { useOffers } from "../../../composables/useOffers.js";
 // Import the cache cleanup function
-import { clearExpiredCustomerBalances } from "../../../offline/index.js";
-import { useResponsive } from "../../composables/useResponsive.js";
-import { useRtl } from "../../composables/useRtl.js";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import { clearExpiredCustomerBalances } from "../../../../offline/index.js";
+import { useResponsive } from "../../../composables/useResponsive.js";
+import { useRtl } from "../../../composables/useRtl.js";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 
 export default {

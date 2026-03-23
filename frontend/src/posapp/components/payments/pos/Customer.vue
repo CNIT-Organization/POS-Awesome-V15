@@ -145,8 +145,8 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, getCurrentInstance, n
 import { storeToRefs } from "pinia";
 import _ from "lodash";
 import UpdateCustomer from "./UpdateCustomer.vue";
-import Skeleton from "../ui/Skeleton.vue";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import Skeleton from "../../ui/Skeleton.vue";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 
 export default {
 	props: {

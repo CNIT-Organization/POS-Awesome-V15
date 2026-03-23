@@ -83,7 +83,7 @@
 
 <script>
 /* global frappe */
-import { ensurePosProfile } from "../../../utils/pos_profile.js";
+import { ensurePosProfile } from "../../../../utils/pos_profile.js";
 import _ from "lodash";
 import placeholderImage from "./placeholder-image.png";
 export default {

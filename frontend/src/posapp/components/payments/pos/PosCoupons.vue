@@ -75,7 +75,7 @@
 
 <script>
 /* global __, frappe */
-import { useCustomersStore } from "../../stores/customersStore.js";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 
 export default {

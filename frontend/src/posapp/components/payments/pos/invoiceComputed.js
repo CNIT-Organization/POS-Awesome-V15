@@ -1,7 +1,7 @@
 /* global flt, __, get_currency_symbol */
-import { perfMarkStart, perfMarkEnd } from "../../utils/perf.js";
+import { perfMarkStart, perfMarkEnd } from "../../../utils/perf.js";
 
-import { parseBooleanSetting } from "../../utils/stock.js";
+import { parseBooleanSetting } from "../../../utils/stock.js";
 
 export default {
 	// Calculate total quantity of all items

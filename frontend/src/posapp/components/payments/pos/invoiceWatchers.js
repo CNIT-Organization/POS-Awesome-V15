@@ -1,5 +1,5 @@
-import { clearPriceListCache } from "../../../offline/index.js";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import { clearPriceListCache } from "../../../../offline/index.js";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 /* global frappe */
 
 const buildSnapshot = (items) => {

@@ -109,7 +109,7 @@
 </template>
 
 <script>
-import format from "../../format";
+import format from "../../../format";
 export default {
 	mixins: [format],
 	data: () => ({

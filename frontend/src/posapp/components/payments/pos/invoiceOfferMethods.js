@@ -1,6 +1,6 @@
-import { silentPrint } from "../../plugins/print.js";
-import { isOffline } from "../../../offline/index.js";
-import { formatUtils } from "../../format.js";
+import { silentPrint } from "../../../plugins/print.js";
+import { isOffline } from "../../../../offline/index.js";
+import { formatUtils } from "../../../format.js";
 /* global __, frappe, flt */
 
 export default {

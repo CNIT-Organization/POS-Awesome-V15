@@ -467,10 +467,10 @@
 <script type="module">
 /* eslint-disable no-unused-vars */
 /* global frappe, __, setLocalStockCache, flt, onScan, get_currency_symbol, current_items, wordCount */
-import format from "../../format";
+import format from "../../../format";
 import _ from "lodash";
 import CameraScanner from "./CameraScanner.vue";
-import { ensurePosProfile } from "../../../utils/pos_profile.js";
+import { ensurePosProfile } from "../../../../utils/pos_profile.js";
 import "vue-virtual-scroller/dist/vue-virtual-scroller.css";
 import { RecycleScroller } from "vue-virtual-scroller";
 import {
@@ -500,18 +500,18 @@ import {
         getItemsLastSync,
         setItemsLastSync,
         forceClearAllCache,
-} from "../../../offline/index.js";
-import stockCoordinator from "../../utils/stockCoordinator.js";
-import { useResponsive } from "../../composables/useResponsive.js";
-import { useRtl } from "../../composables/useRtl.js";
-import { useFlyAnimation } from "../../composables/useFlyAnimation.js";
-import { withPerf, perfMarkStart, perfMarkEnd, scheduleFrame } from "../../utils/perf.js";
-import { useCartValidation } from "../../composables/useCartValidation.js";
-import { useItemsIntegration } from "../../composables/useItemsIntegration.js";
-import { parseBooleanSetting, formatStockShortageError } from "../../utils/stock.js";
+} from "../../../../offline/index.js";
+import stockCoordinator from "../../../utils/stockCoordinator.js";
+import { useResponsive } from "../../../composables/useResponsive.js";
+import { useRtl } from "../../../composables/useRtl.js";
+import { useFlyAnimation } from "../../../composables/useFlyAnimation.js";
+import { withPerf, perfMarkStart, perfMarkEnd, scheduleFrame } from "../../../utils/perf.js";
+import { useCartValidation } from "../../../composables/useCartValidation.js";
+import { useItemsIntegration } from "../../../composables/useItemsIntegration.js";
+import { parseBooleanSetting, formatStockShortageError } from "../../../utils/stock.js";
 import placeholderImage from "./placeholder-image.png";
-import Skeleton from "../ui/Skeleton.vue";
-import { useCustomersStore } from "../../stores/customersStore.js";
+import Skeleton from "../../ui/Skeleton.vue";
+import { useCustomersStore } from "../../../stores/customersStore.js";
 import { storeToRefs } from "pinia";
 
 export default {
