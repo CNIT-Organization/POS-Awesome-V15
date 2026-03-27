@@ -40,11 +40,12 @@
 
 <script>
 /* global frappe, __ */
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, getCurrentInstance } from "vue";
 
 export default {
 	name: "RecipesPage",
 	setup() {
+		const { proxy } = getCurrentInstance();
 		const rows = ref([]);
 		const loading = ref(false);
 		const search = ref("");
@@ -83,13 +84,17 @@ export default {
 		});
 
 		const openRecipe = (name) => {
-			window.open(`${frappe.urllib.get_base_url()}/app/pos-recipe/${encodeURIComponent(name)}`, "_blank");
+			if (proxy.eventBus) {
+				proxy.eventBus.emit("change-page", { page: "Recipe Details", props: { name } });
+			}
 		};
 		const openRecipeList = () => {
 			window.open(`${frappe.urllib.get_base_url()}/app/pos-recipe`, "_blank");
 		};
 		const createRecipe = () => {
-			window.open(`${frappe.urllib.get_base_url()}/app/pos-recipe/new-pos-recipe-1`, "_blank");
+			if (proxy.eventBus) {
+				proxy.eventBus.emit("change-page", { page: "Recipe Details", props: { isNew: true } });
+			}
 		};
 
 		onMounted(load);

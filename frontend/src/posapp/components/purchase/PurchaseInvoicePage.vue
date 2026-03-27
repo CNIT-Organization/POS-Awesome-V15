@@ -31,7 +31,17 @@
 				class="elevation-1"
 			>
 				<template v-slot:item.actions="{ item }">
-					<v-btn size="small" color="primary" variant="text" @click="printInvoice(item.raw.name)">
+					<v-btn
+						size="small"
+						color="secondary"
+						variant="text"
+						@click="openDetails(item.raw?.name || item.name)"
+						class="mr-2"
+					>
+						<v-icon start size="small">mdi-open-in-new</v-icon>
+						{{ __("Open") }}
+					</v-btn>
+					<v-btn size="small" color="primary" variant="text" @click="printInvoice(item.raw?.name || item.name)">
 						<v-icon start size="small">mdi-printer</v-icon>
 						{{ __("Print") }}
 					</v-btn>
@@ -158,7 +168,13 @@ export default {
 		};
 
 		const goNew = () => {
-			eventBus?.emit("change-page", "Purchase Invoice (New)");
+			eventBus?.emit("change-page", "Create Purchase Invoice");
+		};
+
+		const openDetails = (name) => {
+			if (eventBus) {
+				eventBus.emit("change-page", { page: "Purchase Invoice Details", props: { name } });
+			}
 		};
 
 		const debouncedReload = _.debounce(() => load(true), 250);
@@ -170,7 +186,7 @@ export default {
 			load(true);
 		});
 
-		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, printInvoice, goNew };
+		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, printInvoice, goNew, openDetails };
 	},
 };
 </script>

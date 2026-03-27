@@ -46,17 +46,21 @@ import Payments from "./components/payments/Pay.vue";
 import SalesReturn from "./components/payments/pos/SalesReturnPage.vue";
 import SalesInvoicePage from "./components/payments/pos/SalesInvoicePage.vue";
 import PurchaseInvoicePage from "./components/purchase/PurchaseInvoicePage.vue";
-import PurchaseInvoiceNewPage from "./components/purchase/PurchaseInvoiceNewPage.vue";
+import MiniPurchaseInvoice from "./components/purchase/MiniPurchaseInvoice.vue";
+import PurchaseInvoiceDetailsPage from "./components/purchase/PurchaseInvoiceDetailsPage.vue";
 import CustomersPage from "./components/customers/CustomersPage.vue";
 import SuppliersPage from "./components/suppliers/SuppliersPage.vue";
 import ReportsPage from "./components/reports/ReportsPage.vue";
 import Print from "./components/payments/pos/PrintQRCode.vue";
 import StockEntry from "./components/stock/MiniStockEntry.vue";
 import StockEntriesListPage from "./components/stock/StockEntriesListPage.vue";
+import StockEntryDetailsPage from "./components/stock/StockEntryDetailsPage.vue";
 import Item from "./components/item/MiniItem.vue";
 import ItemsListPage from "./components/item/ItemsListPage.vue";
+import ItemDetailsPage from "./components/item/ItemDetailsPage.vue";
 import SalesInvoiceDetailsPage from "./components/pos/SalesInvoiceDetailsPage.vue";
 import RecipesPage from "./components/recipes/RecipesPage.vue";
+import RecipeDetailsPage from "./components/recipes/RecipeDetailsPage.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
 import { useLoading } from "./composables/useLoading.js";
@@ -169,17 +173,21 @@ export default {
 		"Sales Return": SalesReturn,
 		"Sales Invoice": SalesInvoicePage,
 		"Purchase Invoice": PurchaseInvoicePage,
-		"Purchase Invoice (New)": PurchaseInvoiceNewPage,
+		"Create Purchase Invoice": MiniPurchaseInvoice,
+		"Purchase Invoice Details": PurchaseInvoiceDetailsPage,
 		Customers: CustomersPage,
 		Suppliers: SuppliersPage,
 		Reports: ReportsPage,
 		Print,
 		"Create Stock Entry": StockEntry,
-		"Stock Entries List": StockEntriesListPage,
+		"Stock Entry": StockEntriesListPage,
+		"Stock Entry Details": StockEntryDetailsPage,
 		"Create Item": Item,
-		"Items List": ItemsListPage,
+		"Items": ItemsListPage,
+		"Item Details": ItemDetailsPage,
 		"Sales Invoice Details": SalesInvoiceDetailsPage,
 		Recipes: RecipesPage,
+		"Recipe Details": RecipeDetailsPage,
 		AppLoadingOverlay,
 		UpdatePrompt,
 	},

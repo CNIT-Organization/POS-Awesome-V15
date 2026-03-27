@@ -84,3 +84,43 @@ def get_pos_summary(
         "purchase": purchase,
     }
 
+
+@frappe.whitelist()
+def get_sales_register(
+    company=None,
+    pos_profile=None,
+    from_date=None,
+    to_date=None,
+):
+    if not company:
+        company = frappe.defaults.get_user_default("Company")
+    if not from_date or not to_date:
+        return []
+
+    conditions = ["si.company=%(company)s", "si.docstatus=1", "si.posting_date between %(from_date)s and %(to_date)s", "si.is_return=0"]
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+
+    if pos_profile:
+        conditions.append("si.pos_profile=%(pos_profile)s")
+        params["pos_profile"] = pos_profile
+
+    query = f"""
+        SELECT
+            si.name as invoice_id,
+            si.posting_date,
+            si.customer,
+            si.customer_name,
+            si.grand_total,
+            sii.item_code,
+            sii.item_name,
+            sii.qty,
+            sii.rate,
+            sii.amount
+        FROM `tabSales Invoice` si
+        JOIN `tabSales Invoice Item` sii ON sii.parent = si.name
+        WHERE {' AND '.join(conditions)}
+        ORDER BY si.posting_date DESC, si.name DESC
+    """
+    
+    return frappe.db.sql(query, params, as_dict=True)
+

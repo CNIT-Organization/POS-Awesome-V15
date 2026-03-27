@@ -21,35 +21,53 @@
 		</v-col>
 
 		<v-col cols="12">
-			<v-data-table
-				:headers="headers"
-				:items="filteredCustomers"
-				item-key="name"
-				class="elevation-1"
-				:loading="loadingCustomers"
-				:footer-props="{
-					'items-per-page-options': [10, 25, 50, 100],
-					'items-per-page-text': 'Customers per page',
-				}"
-			>
-				<template v-slot:item.actions="{ item }">
-					<v-btn
-						size="small"
-						color="primary"
-						variant="text"
-						@click.stop="editCustomer(item.raw)"
-					>
-						<v-icon start size="small">mdi-pencil</v-icon>
-						{{ __("Edit") }}
-					</v-btn>
-				</template>
-			</v-data-table>
+			<v-card elevation="2" rounded="lg" class="overflow-hidden">
+				<v-data-table
+					:headers="headers"
+					:items="filteredCustomers"
+					item-key="name"
+					class="pos-themed-table"
+					:loading="loadingCustomers"
+					:footer-props="{
+						'items-per-page-options': [10, 25, 50, 100],
+						'items-per-page-text': 'Customers per page',
+					}"
+				>
+					<template v-slot:item.customer_name="{ item }">
+						<div class="d-flex align-center py-2">
+							<v-avatar color="primary-lighten-4" size="36" class="mr-3 text-primary font-weight-bold">
+								{{ getInitials(item.raw?.customer_name || item.customer_name) }}
+							</v-avatar>
+							<div>
+								<div class="font-weight-medium text-body-1">{{ item.raw?.customer_name || item.customer_name }}</div>
+								<div class="text-caption text-medium-emphasis">{{ item.raw?.name || item.name }}</div>
+							</div>
+						</div>
+					</template>
+					<template v-slot:item.name="{ item }">
+						<!-- We hide the explicit ID column logic below by using display:none in headers but let's just render standard since we moved it above. -->
+						<span class="text-body-2 text-medium-emphasis">{{ item.raw?.name || item.name }}</span>
+					</template>
+					<template v-slot:item.actions="{ item }">
+						<v-btn
+							size="small"
+							color="primary"
+							variant="tonal"
+							class="text-none font-weight-bold"
+							@click.stop="editCustomer(item.raw)"
+						>
+							<v-icon start size="small">mdi-account-edit</v-icon>
+							{{ __("Manage") }}
+						</v-btn>
+					</template>
+				</v-data-table>
 
-			<div class="text-center mt-3" v-if="hasMore">
-				<v-btn color="primary" variant="outlined" :loading="loadingCustomers" @click="loadMore">
-					{{ __("Load more") }}
-				</v-btn>
-			</div>
+				<v-card-actions class="justify-center py-4 bg-grey-lighten-5" v-if="hasMore">
+					<v-btn color="primary" variant="outlined" rounded="pill" class="px-6" :loading="loadingCustomers" @click="loadMore">
+						{{ __("Load more customers") }}
+					</v-btn>
+				</v-card-actions>
+			</v-card>
 		</v-col>
 	</v-row>
 
@@ -80,12 +98,20 @@ export default {
 
 		const headers = computed(() => [
 			{ title: __("Customer"), key: "customer_name", align: "start", sortable: true },
-			{ title: __("ID"), key: "name", align: "start", sortable: true },
+			// Hidden explicit ID column in favor of dual-line customer display
+			// { title: __("ID"), key: "name", align: "start", sortable: true },
 			{ title: __("Mobile"), key: "mobile_no", align: "start", sortable: true },
 			{ title: __("Tax ID"), key: "tax_id", align: "start", sortable: true },
 			{ title: __("Address"), key: "primary_address", align: "start", sortable: false },
 			{ title: __("Actions"), key: "actions", align: "end", sortable: false },
 		]);
+
+		const getInitials = (name) => {
+			if (!name) return "?";
+			const words = String(name).trim().split(" ");
+			if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+			return (words[0][0] + words[1][0]).toUpperCase();
+		};
 
 		const doSearch = _.debounce((term) => {
 			customersStore.searchCustomers(term || "", false).catch(() => {});
@@ -133,6 +159,7 @@ export default {
 			addCustomer,
 			editCustomer,
 			loadMore,
+			getInitials,
 		};
 	},
 };

@@ -95,112 +95,71 @@
 			</v-col>
 
 			<!-- Action Buttons -->
-			<v-col cols="12" md="5">
+			<v-col cols="12" md="5" class="d-flex flex-column justify-center pl-md-4">
+				<v-btn
+					block
+					color="success"
+					variant="flat"
+					height="72"
+					prepend-icon="mdi-cash-register"
+					@click="handleShowPayment"
+					class="giant-pay-btn mb-3 rounded-lg pulse-on-hover"
+					:loading="paymentLoading"
+				>
+					<span class="text-h4 font-weight-black">{{ __("PAY") }}</span>
+					<div class="text-caption ml-2 align-self-end mb-1 opacity-80">(F1)</div>
+				</v-btn>
+
 				<v-row dense>
-					<v-col cols="6">
-						<v-btn
-							block
-							color="primary"
-							variant="tonal"
-							prepend-icon="mdi-content-save"
-							@click="handleSaveAndClear"
-							class="summary-btn"
-							:loading="saveLoading"
-						>
-							{{ __("Save & Clear") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6">
-						<v-btn
-							block
-							color="secondary"
-							variant="tonal"
-							prepend-icon="mdi-file-document"
-							@click="handleLoadDrafts"
-							class="white-text-btn summary-btn"
-							:loading="loadDraftsLoading"
-						>
-							{{ __("Load Drafts") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6" v-if="pos_profile.custom_allow_select_sales_order == 1">
-						<v-btn
-							block
-							color="info"
-							variant="tonal"
-							prepend-icon="mdi-book-search"
-							@click="handleSelectOrder"
-							class="summary-btn"
-							:loading="selectOrderLoading"
-						>
-							{{ __("Select S.O") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6">
+					<v-col cols="8">
 						<v-btn
 							block
 							color="error"
 							variant="tonal"
-							prepend-icon="mdi-close-circle"
+							prepend-icon="mdi-cart-remove"
 							@click="handleCancelSale"
-							class="summary-btn"
+							class="summary-btn font-weight-bold"
 							:loading="cancelLoading"
 						>
-							{{ __("Cancel Sale") }}
+							{{ __("Cancel") }}
 						</v-btn>
 					</v-col>
-					<v-col cols="6" v-if="pos_profile.posa_allow_return == 1">
-						<v-btn
-							block
-							color="secondary"
-							variant="tonal"
-							prepend-icon="mdi-backup-restore"
-							@click="handleOpenReturns"
-							class="summary-btn"
-							:loading="returnsLoading"
-						>
-							{{ __("Sales Return") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6" v-if="pos_profile.posa_allow_print_draft_invoices">
-						<v-btn
-							block
-							color="primary"
-							variant="tonal"
-							prepend-icon="mdi-printer"
-							@click="handlePrintDraft"
-							class="summary-btn"
-							:loading="printLoading"
-						>
-							{{ __("Print Draft") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="6">
-						<v-btn
-							block
-							color="info"
-							variant="tonal"
-							prepend-icon="mdi-tag"
-							@click="handleApplyOffers"
-							class="summary-btn"
-							:loading="applyOffersLoading"
-						>
-							{{ __("Apply Offers") }}
-						</v-btn>
-					</v-col>
-					<v-col cols="12">
-						<v-btn
-							block
-							color="success"
-							variant="flat"
-							size="large"
-							prepend-icon="mdi-credit-card"
-							@click="handleShowPayment"
-							class="summary-btn pay-btn"
-							:loading="paymentLoading"
-						>
-							{{ __("PAY") }}
-						</v-btn>
+					<v-col cols="4">
+						<v-menu location="top right">
+							<template v-slot:activator="{ props }">
+								<v-btn
+									block
+									color="primary"
+									variant="tonal"
+									v-bind="props"
+									class="summary-btn"
+								>
+									<v-icon>mdi-dots-horizontal</v-icon>
+								</v-btn>
+							</template>
+							<v-list density="compact" class="pos-themed-card" min-width="200">
+								<v-list-item @click="handleSaveAndClear" prepend-icon="mdi-content-save">
+									<v-list-item-title class="text-body-2">{{ __("Save & Clear") }}</v-list-item-title>
+								</v-list-item>
+								<v-divider class="my-1"></v-divider>
+								<v-list-item @click="handleLoadDrafts" prepend-icon="mdi-file-document">
+									<v-list-item-title class="text-body-2">{{ __("Load Drafts") }}</v-list-item-title>
+								</v-list-item>
+								<v-list-item v-if="pos_profile.custom_allow_select_sales_order == 1" @click="handleSelectOrder" prepend-icon="mdi-book-search">
+									<v-list-item-title class="text-body-2">{{ __("Select S.O") }}</v-list-item-title>
+								</v-list-item>
+								<v-list-item v-if="pos_profile.posa_allow_return == 1" @click="handleOpenReturns" prepend-icon="mdi-backup-restore">
+									<v-list-item-title class="text-body-2">{{ __("Sales Return") }}</v-list-item-title>
+								</v-list-item>
+								<v-divider class="my-1"></v-divider>
+								<v-list-item v-if="pos_profile.posa_allow_print_draft_invoices" @click="handlePrintDraft" prepend-icon="mdi-printer">
+									<v-list-item-title class="text-body-2">{{ __("Print Draft") }}</v-list-item-title>
+								</v-list-item>
+								<v-list-item @click="handleApplyOffers" prepend-icon="mdi-tag">
+									<v-list-item-title class="text-body-2">{{ __("Apply Offers") }}</v-list-item-title>
+								</v-list-item>
+							</v-list>
+						</v-menu>
 					</v-col>
 				</v-row>
 			</v-col>
@@ -400,15 +359,30 @@ export default {
 }
 
 /* Special styling for the PAY button */
-.pay-btn {
-	font-weight: 600 !important;
-	font-size: 1.1rem !important;
-	box-shadow: 0 4px 12px rgba(34, 197, 94, 0.24) !important;
+.giant-pay-btn {
+	box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3) !important;
+	transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+	letter-spacing: 1px;
 }
 
-.pay-btn:hover {
-	box-shadow: 0 6px 16px rgba(34, 197, 94, 0.34) !important;
+.giant-pay-btn:hover {
+	box-shadow: 0 8px 24px rgba(34, 197, 94, 0.45) !important;
 	transform: translateY(-2px);
+}
+
+.giant-pay-btn:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2) !important;
+}
+
+.pulse-on-hover:hover {
+	animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+	0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+	70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
 /* Enhanced field styling */

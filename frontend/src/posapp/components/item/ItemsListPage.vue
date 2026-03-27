@@ -39,7 +39,7 @@
 						@click="openDetails(item.raw?.name || item.name)"
 					>
 						<v-icon start size="small">mdi-open-in-new</v-icon>
-						{{ __("Open in Desk") }}
+						{{ __("Open") }}
 					</v-btn>
 				</template>
 			</v-data-table>
@@ -138,8 +138,9 @@ export default {
 		};
 
 		const openDetails = (name) => {
-			const url = `${frappe.urllib.get_base_url()}/app/item/${encodeURIComponent(name)}`;
-			window.open(url, "_blank");
+			if (proxy.eventBus) {
+				proxy.eventBus.emit("change-page", { page: "Item Details", props: { name } });
+			}
 		};
 
 		const createItem = () => {

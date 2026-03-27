@@ -79,6 +79,9 @@
 			<v-tab value="overview" class="text-subtitle-1 font-weight-bold px-6">
 				<v-icon start>mdi-view-dashboard-outline</v-icon>{{ __("Overview") }}
 			</v-tab>
+			<v-tab value="sales_register" class="text-subtitle-1 font-weight-bold px-6">
+				<v-icon start>mdi-table-large</v-icon>{{ __("Sales Register") }}
+			</v-tab>
 			<v-tab value="by_invoice" class="text-subtitle-1 font-weight-bold px-6">
 				<v-icon start>mdi-receipt-outline</v-icon>{{ __("Usage by Invoice") }}
 			</v-tab>
@@ -159,6 +162,68 @@
 						</v-card>
 					</v-col>
 				</v-row>
+			</v-window-item>
+
+			<!-- Sales Register Tab -->
+			<v-window-item value="sales_register">
+				<v-card class="pos-themed-card mb-4 pa-4" elevation="2" rounded="lg">
+					<v-row align="center" justify="space-between">
+						<v-col cols="12" md="4" class="d-flex align-center">
+							<v-avatar color="success-lighten-4" size="48" class="mr-4 rounded-lg">
+								<v-icon color="success">mdi-cash-multiple</v-icon>
+							</v-avatar>
+							<div>
+								<div class="text-caption text-uppercase text-medium-emphasis">{{ __("Total Items Value") }}</div>
+								<div class="text-h6 font-weight-bold text-success">{{ formatMoney(totalSalesRegisterValue) }}</div>
+							</div>
+						</v-col>
+						<v-col cols="12" md="4" class="d-flex align-center justify-end">
+							<v-text-field
+								v-model="salesRegisterSearch"
+								density="compact"
+								variant="outlined"
+								hide-details
+								prepend-inner-icon="mdi-magnify"
+								:label="__('Search Register...')"
+								class="bg-transparent"
+							></v-text-field>
+						</v-col>
+					</v-row>
+				</v-card>
+
+				<v-card elevation="3" rounded="lg" class="overflow-hidden">
+					<v-data-table
+						:headers="salesRegisterHeaders"
+						:items="salesRegister"
+						:search="salesRegisterSearch"
+						item-key="id"
+						:loading="loadingSalesRegister"
+						density="comfortable"
+						class="pos-themed-table"
+					>
+						<template #item.invoice_id="{ item }">
+							<v-btn
+								variant="text"
+								color="primary"
+								class="font-weight-bold px-2"
+								:href="invoiceUrl(item.raw?.invoice_id || item.invoice_id)"
+								target="_blank"
+							>
+								{{ item.raw?.invoice_id || item.invoice_id }}
+								<v-icon end size="small">mdi-open-in-new</v-icon>
+							</v-btn>
+						</template>
+						<template #item.amount="{ item }">
+							<span class="font-weight-bold text-success">{{ formatMoney(item.raw?.amount || item.amount) }}</span>
+						</template>
+						<template #item.rate="{ item }">
+							<span>{{ formatMoney(item.raw?.rate || item.rate) }}</span>
+						</template>
+						<template #item.qty="{ item }">
+							<v-chip size="small" variant="flat" color="grey">{{ formatFloat(item.raw?.qty || item.qty) }}</v-chip>
+						</template>
+					</v-data-table>
+				</v-card>
 			</v-window-item>
 
 			<!-- By Invoice Tab -->
@@ -361,6 +426,39 @@ export default {
 			}
 		};
 
+		// Sales Register
+		const salesRegister = ref([]);
+		const salesRegisterSearch = ref("");
+		const loadingSalesRegister = ref(false);
+		const totalSalesRegisterValue = ref(0);
+		const salesRegisterHeaders = ref([
+			{ title: __("Invoice ID"), key: "invoice_id", align: "start" },
+			{ title: __("Date"), key: "posting_date" },
+			{ title: __("Customer"), key: "customer_name" },
+			{ title: __("Item Code"), key: "item_code" },
+			{ title: __("Item Name"), key: "item_name" },
+			{ title: __("Qty"), key: "qty", align: "end" },
+			{ title: __("Rate"), key: "rate", align: "end" },
+			{ title: __("Amount"), key: "amount", align: "end" }
+		]);
+
+		const loadSalesRegister = async () => {
+			if (isOffline()) return;
+			const opening = getOpeningStorage();
+			const company = opening?.pos_profile?.company || opening?.company?.name || opening?.company || null;
+			loadingSalesRegister.value = true;
+			try {
+				const resp = await frappe.call({
+					method: "posawesome.posawesome.api.reports.get_sales_register",
+					args: { company, from_date: fromDate.value, to_date: toDate.value }
+				});
+				salesRegister.value = (resp?.message || []).map((r, idx) => ({ id: idx, ...r }));
+				totalSalesRegisterValue.value = salesRegister.value.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+			} finally {
+				loadingSalesRegister.value = false;
+			}
+		};
+
 		// Usage (recipes) tables
 		const usageByInvoice = ref([]);
 		const usageByItem = ref([]);
@@ -442,34 +540,45 @@ export default {
 		};
 
 		const refreshAll = async () => {
-			await Promise.all([loadSummary(), loadUsage()]);
+			await Promise.all([loadSummary(), loadUsage(), loadSalesRegister()]);
 			recalcFilters();
 			recalcTotals();
 		};
 
 		const exportCsv = () => {
-			const rows = [
-				["Usage by Invoice"],
-				["Invoice", "Posting Date", "Parent Item", "Component Item", "Consumed Qty", "UOM"],
-				...filteredByInvoice.value.map((r) => [
-					r.invoice,
-					r.posting_date,
-					r.parent_item,
-					r.component_item,
-					r.consumed_qty,
-					r.uom,
-				]),
-				[],
-				["Usage by Item"],
-				["Component Item", "Total Consumed", "UOM", "Invoices"],
-				...filteredByItem.value.map((r) => [r.component_item, r.total_consumed_qty, r.uom, r.invoices]),
-			];
+			let rows = [];
+			if (activeTab.value === 'sales_register') {
+				rows = [
+					["Sales Register"],
+					["Invoice ID", "Date", "Customer", "Item Code", "Item Name", "Qty", "Rate", "Amount"],
+					...salesRegister.value.map((r) => [
+						r.invoice_id, r.posting_date, r.customer_name, r.item_code, r.item_name, r.qty, r.rate, r.amount
+					])
+				];
+			} else {
+				rows = [
+					["Usage by Invoice"],
+					["Invoice", "Posting Date", "Parent Item", "Component Item", "Consumed Qty", "UOM"],
+					...filteredByInvoice.value.map((r) => [
+						r.invoice,
+						r.posting_date,
+						r.parent_item,
+						r.component_item,
+						r.consumed_qty,
+						r.uom,
+					]),
+					[],
+					["Usage by Item"],
+					["Component Item", "Total Consumed", "UOM", "Invoices"],
+					...filteredByItem.value.map((r) => [r.component_item, r.total_consumed_qty, r.uom, r.invoices]),
+				];
+			}
 			const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
 			const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `recipe-usage-${fromDate.value}-to-${toDate.value}.csv`;
+			a.download = `report-${activeTab.value}-${fromDate.value}-to-${toDate.value}.csv`;
 			a.click();
 			URL.revokeObjectURL(url);
 		};
@@ -498,6 +607,11 @@ export default {
 			usageByItemHeaders,
 			loadingUsage,
 			activeTab,
+			salesRegister,
+			salesRegisterSearch,
+			loadingSalesRegister,
+			totalSalesRegisterValue,
+			salesRegisterHeaders,
 			componentFilter,
 			componentOptions,
 			filteredByInvoice,

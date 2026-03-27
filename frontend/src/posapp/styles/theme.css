@@ -224,12 +224,15 @@
 .posapp .pos-bg-primary {
 	background-color: var(--pos-bg-primary) !important;
 }
+
 .posapp .pos-bg-secondary {
 	background-color: var(--pos-bg-secondary) !important;
 }
+
 .posapp .pos-bg-surface {
 	background-color: var(--pos-surface) !important;
 }
+
 .posapp .pos-bg-card {
 	background-color: var(--pos-card-bg) !important;
 }
@@ -237,6 +240,7 @@
 .posapp .pos-text-primary {
 	color: var(--pos-text-primary) !important;
 }
+
 .posapp .pos-text-secondary {
 	color: var(--pos-text-secondary) !important;
 }
@@ -244,6 +248,7 @@
 .posapp .pos-border {
 	border-color: var(--pos-border) !important;
 }
+
 .posapp .pos-border-light {
 	border-color: var(--pos-border-light) !important;
 }

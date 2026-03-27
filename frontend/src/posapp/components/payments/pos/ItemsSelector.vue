@@ -4297,7 +4297,8 @@ export default {
 	cursor: pointer;
 	display: flex;
 	flex-direction: column;
-	height: auto;
+	height: calc(100% - 16px);
+	margin: 8px;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 	will-change: transform;
 	backface-visibility: hidden;

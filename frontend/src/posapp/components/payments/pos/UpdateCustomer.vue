@@ -1,10 +1,10 @@
 <template>
 	<v-row justify="center">
-		<v-dialog v-model="customerDialog" max-width="600px" persistent>
-			<v-card>
-				<v-card-title class="d-flex align-center">
-					<span v-if="customer_id" class="text-h5 text-primary">{{ __("Update Customer") }}</span>
-					<span v-else class="text-h5 text-primary">{{ __("Create Customer") }}</span>
+		<v-dialog v-model="customerDialog" max-width="900px" persistent>
+			<v-card class="rounded-lg overflow-hidden">
+				<v-card-title class="d-flex align-center px-6 py-4 border-b bg-white">
+					<span v-if="customer_id" class="text-h6 font-weight-bold text-primary">{{ __("Manage Customer") }}</span>
+					<span v-else class="text-h6 font-weight-bold text-primary">{{ __("New Customer") }}</span>
 					<v-spacer></v-spacer>
 					<v-switch
 						v-model="hideNonEssential"
@@ -12,23 +12,53 @@
 						inset
 						hide-details
 						color="primary"
-						:label="__('Hide Non Essential Fields')"
+						:label="__('Simple View')"
+						class="mr-2"
 					></v-switch>
 				</v-card-title>
 				<v-card-text class="pa-0">
-					<v-container>
-						<v-row>
-							<v-col cols="12">
-								<v-text-field
-									density="compact"
-									color="primary"
-									:label="frappe._('Customer Name') + ' *'"
-									hide-details
-									class="pos-themed-input"
-									v-model="customer_name"
-								></v-text-field>
-							</v-col>
-							<v-col cols="6">
+					<v-row no-gutters class="fill-height">
+						<!-- Left Profile Column -->
+						<v-col cols="12" md="4" class="bg-grey-lighten-4 pa-6 d-flex flex-column align-center border-e">
+							<v-avatar color="primary-lighten-4" size="90" class="mb-4 text-h4 font-weight-regular text-primary">
+								{{ getInitials(customer_name) }}
+							</v-avatar>
+							<div class="text-h6 font-weight-bold text-center mb-1 line-clamp-1 w-100">
+								{{ customer_name || __("New Customer") }}
+							</div>
+							<div class="text-caption text-medium-emphasis mb-6 text-center">
+								{{ email_id || tax_id || __("No email or Tax ID provided") }}
+							</div>
+							
+							<div class="w-100" v-if="loyalty_program || loyalty_points != null">
+								<v-divider class="mb-4"></v-divider>
+								<div class="text-overline text-medium-emphasis mb-2">{{ __("Loyalty Status") }}</div>
+								<v-card variant="flat" border class="bg-white px-3 py-2 mb-2 d-flex justify-space-between align-center" v-if="loyalty_program">
+									<span class="text-caption font-weight-medium">{{ __("Program") }}</span>
+									<span class="text-caption font-weight-bold text-primary">{{ loyalty_program }}</span>
+								</v-card>
+								<v-card variant="flat" border class="bg-white px-3 py-2 d-flex justify-space-between align-center" v-if="loyalty_points">
+									<span class="text-caption font-weight-medium">{{ __("Points") }}</span>
+									<span class="text-caption font-weight-bold text-success">{{ loyalty_points }}</span>
+								</v-card>
+							</div>
+						</v-col>
+
+						<!-- Right Form Column -->
+						<v-col cols="12" md="8" class="bg-white">
+							<v-container class="pa-6">
+								<v-row dense>
+									<v-col cols="12">
+										<v-text-field
+											density="compact"
+											color="primary"
+											:label="frappe._('Customer Name') + ' *'"
+											hide-details
+											class="pos-themed-input"
+											v-model="customer_name"
+										></v-text-field>
+									</v-col>
+									<v-col cols="6">
 								<v-text-field
 									density="compact"
 									color="primary"
@@ -175,12 +205,15 @@
 								></v-text-field>
 							</v-col>
 						</v-row>
-					</v-container>
+							</v-container>
+						</v-col>
+					</v-row>
 				</v-card-text>
-				<v-card-actions>
+				<v-divider></v-divider>
+				<v-card-actions class="px-6 py-4 bg-grey-lighten-5">
 					<v-spacer></v-spacer>
-					<v-btn color="error" theme="dark" @click="confirm_close">{{ __("Close") }}</v-btn>
-					<v-btn color="success" theme="dark" @click="submit_dialog">{{ __("Submit") }}</v-btn>
+					<v-btn color="grey-darken-1" variant="text" class="px-4" @click="confirm_close">{{ __("Cancel") }}</v-btn>
+					<v-btn color="primary" variant="flat" class="px-6 font-weight-bold" @click="submit_dialog">{{ customer_id ? __("Save Changes") : __("Create Customer") }}</v-btn>
 				</v-card-actions>
 			</v-card>
 		</v-dialog>
@@ -338,6 +371,12 @@ export default {
 	},
 	computed: {},
 	methods: {
+		getInitials(name) {
+			if (!name) return "?";
+			const words = String(name).trim().split(" ");
+			if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
+			return (words[0][0] + words[1][0]).toUpperCase();
+		},
 		// Add a new method to update calendar date
 		updateCalendarDate(day, month, year) {
 			// First close the date picker if it's open
