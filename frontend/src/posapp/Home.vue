@@ -32,7 +32,7 @@
 				@update-after-delete="handleUpdateAfterDelete"
 			/>
 			<div class="page-content">
-				<component v-bind:is="page" class="mx-4 md-4"></component>
+				<component v-bind:is="page" v-bind="pageProps" class="mx-4 md-4"></component>
 			</div>
 		</v-main>
 	</v-app>
@@ -52,7 +52,10 @@ import SuppliersPage from "./components/suppliers/SuppliersPage.vue";
 import ReportsPage from "./components/reports/ReportsPage.vue";
 import Print from "./components/payments/pos/PrintQRCode.vue";
 import StockEntry from "./components/stock/MiniStockEntry.vue";
+import StockEntriesListPage from "./components/stock/StockEntriesListPage.vue";
 import Item from "./components/item/MiniItem.vue";
+import ItemsListPage from "./components/item/ItemsListPage.vue";
+import SalesInvoiceDetailsPage from "./components/pos/SalesInvoiceDetailsPage.vue";
 import RecipesPage from "./components/recipes/RecipesPage.vue";
 import AppLoadingOverlay from "./components/ui/LoadingOverlay.vue";
 import UpdatePrompt from "./components/ui/UpdatePrompt.vue";
@@ -103,6 +106,7 @@ export default {
 	data: function () {
 		return {
 			page: "POS",
+			pageProps: {},
 			// POS Profile data
 			posProfile: {},
 			pendingInvoices: 0,
@@ -170,8 +174,11 @@ export default {
 		Suppliers: SuppliersPage,
 		Reports: ReportsPage,
 		Print,
-		"Stock Entry": StockEntry,
-		Item,
+		"Create Stock Entry": StockEntry,
+		"Stock Entries List": StockEntriesListPage,
+		"Create Item": Item,
+		"Items List": ItemsListPage,
+		"Sales Invoice Details": SalesInvoiceDetailsPage,
 		Recipes: RecipesPage,
 		AppLoadingOverlay,
 		UpdatePrompt,
@@ -213,13 +220,15 @@ export default {
 		checkCurrentOrigin,
 		checkExternalConnectivity,
 		checkWebSocketConnectivity,
-		setPage(page) {
+		setPage(page, props = {}) {
 			// Shortcut entry points to existing reports UI.
 			if (page === "Recipe Usage") {
 				this.page = "Reports";
+				this.pageProps = props;
 				return;
 			}
 			this.page = page;
+			this.pageProps = props;
 		},
 
 		async initializeData() {
@@ -310,9 +319,11 @@ export default {
 				});
 
 				// Allow pages to request navigation (e.g. Purchase Invoice list -> Purchase Invoice (New))
-				this.eventBus.on("change-page", (page) => {
-					if (page) {
-						this.setPage(page);
+				this.eventBus.on("change-page", (payload) => {
+					if (typeof payload === "string") {
+						this.setPage(payload);
+					} else if (payload && payload.page) {
+						this.setPage(payload.page, payload.props || {});
 					}
 				});
 

@@ -6,12 +6,16 @@
 				density="compact"
 				variant="outlined"
 				class="pos-themed-input"
-				:label="__('Search Sales Invoices (name/customer)')"
+				:label="__('Search Stock Entries (Name or Type)')"
 				hide-details
 				clearable
 			/>
 		</v-col>
-		<v-col cols="12" md="6" class="d-flex justify-end align-center">
+		<v-col cols="12" md="6" class="d-flex justify-end align-center" style="gap: 8px;">
+			<v-btn color="primary" @click="createStockEntry">
+				<v-icon start>mdi-plus</v-icon>
+				{{ __("Create Stock Entry") }}
+			</v-btn>
 			<v-btn color="primary" variant="tonal" :loading="loading" @click="load(true)">
 				<v-icon start>mdi-refresh</v-icon>
 				{{ __("Refresh") }}
@@ -25,21 +29,17 @@
 				item-key="name"
 				:loading="loading"
 				class="elevation-1"
+				density="compact"
 			>
 				<template v-slot:item.actions="{ item }">
-					<v-btn size="small" color="primary" variant="text" @click="printInvoice(item.raw?.name || item.name)">
-						<v-icon start size="small">mdi-printer</v-icon>
-						{{ __("Print") }}
-					</v-btn>
 					<v-btn
 						size="small"
 						color="secondary"
 						variant="text"
-						class="ml-2"
 						@click="openDetails(item.raw?.name || item.name)"
 					>
-						<v-icon start size="small">mdi-file-document-outline</v-icon>
-						{{ __("Details") }}
+						<v-icon start size="small">mdi-open-in-new</v-icon>
+						{{ __("Open in Desk") }}
 					</v-btn>
 				</template>
 			</v-data-table>
@@ -52,7 +52,7 @@
 					:loading="loadingMore"
 					@click="loadMore"
 				>
-					{{ hasMore ? __("Load more") : __("No more invoices") }}
+					{{ hasMore ? __("Load more") : __("No more entries") }}
 				</v-btn>
 			</div>
 		</v-col>
@@ -62,11 +62,10 @@
 <script>
 /* global frappe, __ */
 import { computed, onMounted, ref, watch, getCurrentInstance } from "vue";
-import { getOpeningStorage } from "../../../../offline/index.js";
 import _ from "lodash";
 
 export default {
-	name: "SalesInvoicePage",
+	name: "StockEntriesListPage",
 	setup() {
 		const { proxy } = getCurrentInstance();
 		const rows = ref([]);
@@ -77,24 +76,16 @@ export default {
 		const offset = ref(0);
 
 		const search = ref("");
-		const company = ref(null);
 
 		const headers = computed(() => [
-			{ title: __("Invoice"), key: "name", align: "start", sortable: true },
+			{ title: __("Name"), key: "name", align: "start", sortable: true },
+			{ title: __("Type"), key: "stock_entry_type", align: "start", sortable: true },
+			{ title: __("Company"), key: "company", align: "start", sortable: true },
+			{ title: __("From Warehouse"), key: "from_warehouse", align: "start", sortable: true },
+			{ title: __("To Warehouse"), key: "to_warehouse", align: "start", sortable: true },
 			{ title: __("Date"), key: "posting_date", align: "start", sortable: true },
-			{ title: __("Customer"), key: "customer_name", align: "start", sortable: true },
-			{ title: __("Amount"), key: "grand_total", align: "end", sortable: true },
-			{ title: __("Currency"), key: "currency", align: "start", sortable: true },
 			{ title: __("Actions"), key: "actions", align: "end", sortable: false },
 		]);
-
-		const buildFilters = () => {
-			const filters = { docstatus: 1, is_return: 0 };
-			if (company.value) {
-				filters.company = company.value;
-			}
-			return filters;
-		};
 
 		const fetchPage = async (reset = false) => {
 			if (reset) {
@@ -105,14 +96,11 @@ export default {
 			if (!hasMore.value) return;
 
 			const currentOffset = offset.value;
-			const fields = ["name", "posting_date", "customer_name", "grand_total", "currency"];
+			const fields = ["name", "stock_entry_type", "company", "from_warehouse", "to_warehouse", "posting_date"];
 
-			const filters = buildFilters();
-
-			let data = await frappe.db.get_list("Sales Invoice", {
+			let data = await frappe.db.get_list("Stock Entry", {
 				fields,
-				filters,
-				order_by: "posting_date desc, modified desc",
+				order_by: "modified desc",
 				limit_start: currentOffset,
 				limit: pageSize,
 			});
@@ -120,9 +108,9 @@ export default {
 			const term = (search.value || "").trim().toLowerCase();
 			if (term) {
 				data = (data || []).filter((row) => {
-					const name = String(row.name || "").toLowerCase();
-					const customer = String(row.customer_name || "").toLowerCase();
-					return name.includes(term) || customer.includes(term);
+					const nameStr = String(row.name || "").toLowerCase();
+					const typeStr = String(row.stock_entry_type || "").toLowerCase();
+					return nameStr.includes(term) || typeStr.includes(term);
 				});
 			}
 
@@ -150,25 +138,14 @@ export default {
 			}
 		};
 
-		const printInvoice = (name) => {
-			const url =
-				frappe.urllib.get_base_url() +
-				"/printview?doctype=" +
-				encodeURIComponent("Sales Invoice") +
-				"&name=" +
-				encodeURIComponent(name) +
-				"&trigger_print=1";
-			window.open(url, "Print");
-		};
 		const openDetails = (name) => {
+			const url = `${frappe.urllib.get_base_url()}/app/stock-entry/${encodeURIComponent(name)}`;
+			window.open(url, "_blank");
+		};
+
+		const createStockEntry = () => {
 			if (proxy.eventBus) {
-				proxy.eventBus.emit("change-page", {
-					page: "Sales Invoice Details",
-					props: { name }
-				});
-			} else {
-				const url = `${frappe.urllib.get_base_url()}/app/sales-invoice/${encodeURIComponent(name)}`;
-				window.open(url, "_blank");
+				proxy.eventBus.emit("change-page", "Create Stock Entry");
 			}
 		};
 
@@ -176,13 +153,10 @@ export default {
 		watch(search, () => debouncedReload());
 
 		onMounted(() => {
-			const opening = getOpeningStorage();
-			company.value = opening?.pos_profile?.company || null;
 			load(true);
 		});
 
-		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, printInvoice, openDetails };
+		return { headers, rows, loading, loadingMore, hasMore, search, load, loadMore, openDetails, createStockEntry };
 	},
 };
 </script>
-
